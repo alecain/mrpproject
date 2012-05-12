@@ -15,6 +15,9 @@ class Map{
 		Map(string filename, string copyto); //load an existing map
 		Map(string filename, int x, int y);//create a new map of size x y
 		void save(void);
+		double getVal(int x, int y);
+		void setVal(int x, int y, double newVal);
+		void conflate(int x, int y, double newVal);
 
 		~Map();
 

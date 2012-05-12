@@ -58,7 +58,13 @@ Map::Map(string filename, int x, int y){
 	this->filename=filename;
 	this->x = x;
 	this->y = y;
-
+	this->maxVal= 255;
+		
+	this->map =(int **) malloc(sizeof(int **) * this->x); // allocate enough space for head of collumns
+	for(int x = 0; x< this->x; x++){
+		this->map[x] =(int *) malloc(sizeof(int *) * this->y); // allocate enough space for the row
+		memset(this->map[x],0,this->y);
+	}
 }
 
 void Map::save(void){
@@ -69,7 +75,7 @@ void Map::save(void){
 	char buf[30];
 
 	int len = sprintf(buf,"P5 %d %d %d ", this->x, this->y, this->maxVal);
-	fwrite(buf,sizeof(char), len-1, f); //print all but the trailing null
+	fwrite(buf,sizeof(char), len, f); //print all but the trailing null
 
 	for(int y=0;y<this->y;y++){
 		for(int x=0;x<this->x;x++){
@@ -89,9 +95,18 @@ Map::~Map(){
 
 }
 
-
+double Map::getVal(int x, int y){
+	return map[x][y]/maxVal;
+}
+void Map::setVal(int x, int y, double newVal){
+	map[x][y]= newVal*maxVal;
+}
+void Map::conflate(int x, int y, double newVal){
+	map[x][y] = (map[x][y]/maxVal + newVal)*maxVal/2;
+}
 int main(int argc, char *argv[]) {
 	Map map(argv[1], argv[2]);
+	Map blank("blank.pgm", 100, 100);
 
 }
 
