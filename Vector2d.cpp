@@ -46,6 +46,10 @@ Vector2d Vector2d::plus(Vector2d b){
 	return ret;
 }
 
+Vector2d Vector2d::operator+=(Vector2d other){
+	this->x += other.x;
+	this->y += other.y;
+}
 
 Vector2d Vector2d::divide(double scalar){
 	Vector2d ret;

@@ -1,5 +1,8 @@
 
 #include <ostream>
+#ifndef _VECTOR_H
+#define _VECTOR_H
+
 class Vector2d{
 	public:
 		double x;
@@ -7,7 +10,9 @@ class Vector2d{
 
 		Vector2d();
 		Vector2d(double x, double y);
-	
+		
+		Vector2d operator+=(Vector2d);
+
 		Vector2d norm();
 		Vector2d clip(double max);
 		double len() const;
@@ -25,3 +30,5 @@ class Vector2d{
 		Vector2d rotateAbs(double theta);
 
 };
+
+#endif

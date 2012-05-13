@@ -10,9 +10,11 @@
 #include <stdlib.h>
 #include <cstring>
 #include <iostream>
+#include <cmath>
 #include "map.h"
 
-
+#define PI 3.14159
+#define toRad(deg) (deg*PI/180.0)
 using namespace std;
 
 Map::Map(string filename, string copyto){
@@ -54,6 +56,10 @@ Map::Map(string filename, string copyto){
 	std::cout<<filename<<" loaded successfully!"<<std::endl;
 }
 
+Map::Map(string filename, double x, double y){
+	Map(filename, x*RESOLUTION, y *RESOLUTION);
+}
+
 Map::Map(string filename, int x, int y){
 	this->filename=filename;
 	this->x = x;
@@ -63,7 +69,7 @@ Map::Map(string filename, int x, int y){
 	this->map =(int **) malloc(sizeof(int **) * this->x); // allocate enough space for head of collumns
 	for(int x = 0; x< this->x; x++){
 		this->map[x] =(int *) malloc(sizeof(int *) * this->y); // allocate enough space for the row
-		memset(this->map[x],0,this->y);
+		memset(this->map[x],128,this->y*4);
 	}
 }
 
@@ -95,18 +101,67 @@ Map::~Map(){
 
 }
 
-double Map::getVal(int x, int y){
-	return map[x][y]/maxVal;
+double Map::getVal(double x, double y){
+	return this->getVal(x*RESOLUTION, y*RESOLUTION)/maxVal;
+}
+int Map::getVal(int x, int y){
+	return map[x][y];
+}
+void Map::setVal(double x, double y, double newVal){
+	setVal(x*RESOLUTION, y*RESOLUTION, newVal);
 }
 void Map::setVal(int x, int y, double newVal){
 	map[x][y]= newVal*maxVal;
 }
-void Map::conflate(int x, int y, double newVal){
-	map[x][y] = (map[x][y]/maxVal + newVal)*maxVal/2;
+void Map::conflate(double x, double y, double newVal){
+	conflate(x*RESOLUTION, y*RESOLUTION, newVal);
 }
+void Map::conflate(int x, int y, double newVal){
+	map[x][y] = (map[x][y]/this->maxVal + newVal)*this->maxVal/2;
+}
+
+double Map::raytrace(double x0, double y0, double angle){
+
+	int x=(x0)* RESOLUTION + this->x, y=y0*RESOLUTION+ this->y;
+	double slope = tan(angle);
+	
+	double sx,sy;
+	if ( angle > toRad(-90) && angle < toRad(90)) sx=1; else sx=-1;
+	if  ( angle > 0 && angle < toRad(180)) sy=1; else sy=-1;
+	double dx, dy;
+	
+	dx=1;
+	dy=abs(slope);
+	double err= dx-dy;
+
+	while(1){
+		if (x < 0 || x >= this->x || y < 0 || y >= this->y){
+			break;
+		}
+		if(this->getVal(x,y) < 10)
+				break;
+		double e2= 2*err;
+		
+		if(e2 > -1* dy){
+			err -= dy;
+			x+=sx;
+		}
+		if(e2 < dx){
+			err +=dx;
+			y+=sy;	
+		}
+	}
+
+	return sqrt(pow(x-x0,2)+pow(y-y0,2));
+}
+
+/*
 int main(int argc, char *argv[]) {
 	Map map(argv[1], argv[2]);
 	Map blank("blank.pgm", 100, 100);
-
-}
+	cout<<"1 "<<map.raytrace(0,0, toRad(-45))<<endl;
+	cout<<"2 "<<map.raytrace(0,0, toRad(135))<<endl;
+	cout<<"3 "<<map.raytrace(0,0, toRad(45))<<endl;
+	cout<<"4 "<<map.raytrace(0,0, toRad(-135))<<endl;
+}*/
 
