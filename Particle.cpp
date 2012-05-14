@@ -33,15 +33,11 @@ double gaussian(){
 	return sum-6.0;
 }
 
-vector<Particle> Particle::update(Vector2d odometry,double dtheta, int toSpawn){
+vector<Particle> Particle::update(double dlinear,double dtheta, int toSpawn){
 
 	this->scoreVal=0;
 	vector<Particle> ret;
-	double dlinear=odometry.len(); 
 	
-	if(fabs(wrap(odometry.getAngle()-this->theta)) > PI/2){
-		dlinear *= -1;
-	}
 
 	for(int i=0;i<toSpawn;i++){
 		double newTheta = this->theta;
@@ -53,10 +49,8 @@ vector<Particle> Particle::update(Vector2d odometry,double dtheta, int toSpawn){
 	}
 
 
-
 	this->theta += dtheta + dtheta* thetaThetaCov*gaussian()+dlinear*thetaLinearCov*gaussian();
 	this->theta=wrap(this->theta);	
-	//this->origin += odometry.rotate(this->theta);
 	this->origin += Vector2d(dlinear + dtheta * linearThetaCov * gaussian() + dlinear * linearLinearCov * gaussian(),0).rotate(this->theta);
 	return ret;
 }
@@ -65,9 +59,16 @@ double Particle::score(Map *map, Scan *scan){
 	if (scoreVal != 0){
 		return scoreVal;
 	}
-	double cost= 0;
-	for (vector<ScanNode>::iterator it= scan->scans.begin(); it < scan->scans.end(); it++){
-		double mapRange = map->raytrace(it->origin.x + this->origin.x, it->origin.y+this->origin.y, wrap(it->angle+this->theta));
+	double cost= 0xFFFF;
+	for (vector<ScanNode>::iterator it= scan->scans.begin(); it < scan->scans.end(); it+=2){
+		double mapRange= 0xFFFF;
+		for(double i =-it->width/2; i < it->width/2; i+= toRad(1)){
+			double ray = map->raytrace(it->origin.x + this->origin.x,
+					it->origin.y+this->origin.y,
+					wrap(i+it->angle+this->theta),
+					MAX_RANGE);
+			mapRange=min(mapRange,ray);
+		}		
 		if (mapRange > 5.0){
 			mapRange=5.0;
 		}

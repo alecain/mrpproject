@@ -12,39 +12,19 @@
 #include "Vector2d.h"
 #include "Scan.h"
 #include "map.h"
+#include "Ploc.h"
 #include "Particle.h"
 
 using namespace PlayerCc;
 using namespace std;
 
+
 /**
  ****************************************************************************
- *			Constants
+ *			Definitions
  ****************************************************************************
  */
 
-
-#define MAX_DIST 4
-
-#define SCALE 2
-
-
-#define UNEXPLORED 1
-
-#define X_RES	0.066	//resolution of 5cm per pixel yielding 30m x
-#define Y_RES	0.066	//resolution of 5cm per pixel yielding 30m y
-
-#define WIN_X 2000/SCALE
-#define WIN_Y 700/SCALE
-
-#define WIN_X_METERS (WIN_X *SCALE * X_RES)
-#define WIN_Y_METERS (WIN_Y *SCALE * Y_RES)
-
-#define XOFFSET WIN_X_METERS/2 //set origin in the middle
-#define YOFFSET WIN_Y_METERS/2
-
-#define windowX(x) ((x+XOFFSET)/X_RES/SCALE)
-#define windowY(y) ((y+YOFFSET)/Y_RES/SCALE)
 
 /**
  ****************************************************************************
@@ -53,21 +33,14 @@ using namespace std;
  */
 
 
-const double pose[8][4] = {
-	{  0.075, 0.130, toRad(90)},
-	{  0.115, 0.115, toRad(50)},
-	{  0.150, 0.080, toRad(30)},
-	{  0.170, 0.025, toRad(10)},
-	{  0.170, -0.025, toRad(-10)},
-	{  0.150, -0.080, toRad(-30)},
-	{  0.115, -0.115, toRad(-50)},
-	{  0.075, -0.130, toRad(-90)}};
 static PlayerClient *pRobot;
 static Position2dProxy *pPosition;
 static SonarProxy *pSonar;
+static RangerProxy *pRanger;
 pthread_mutex_t display_mut;
 pthread_mutex_t particles_mut;
-vector<Particle> particles;
+
+//vector<Particle> particles;
 
 
 void Particle::draw(){
@@ -99,13 +72,7 @@ void Particle::draw(){
 
 }
 
-/**
- ****************************************************************************
- *			Definitions
- ****************************************************************************
- */
 
-void conflatePixel( double x, double y, double value);
 /**
  ****************************************************************************
  *			Sensor abstraction
@@ -117,52 +84,6 @@ void conflatePixel( double x, double y, double value);
 //abstraction of the ranger and sonar
 double getRange(int index){
 	return (*pSonar)[index];
-}
-
-
-void processScan(Scan *scan){
-
-	//use the minimum x to start.
-	double xStart= -MAX_DIST+scan->origin.x; 
-	double xEnd= MAX_DIST+scan->origin.x;
-
-	double yStart= -MAX_DIST+scan->origin.y;
-	double yEnd= MAX_DIST+scan->origin.y;
-/*
-	for (double dx = xStart; dx < xEnd; dx +=X_RES){
-		for (double dy = yStart; dy < yEnd; dy +=Y_RES){
-			for (int i=0;i<scan->len();i++){
-				Vector2d obstacle = scan->getObstacle(i);
-
-				if(abs(dtheta) > toRad(15)){
-					continue;
-				}
-
-				// lose precision based on angle from center.
-				if (scalingVal >0){
-
-					double dist = point.len();
-					if (abs(dist - obs) < X_RES*2){
-						//near the obstacle.
-						val = 5;
-					}
-					else if (dist < .2) {
-						//near the sensor. Don't trust the range as much
-						val = .5;
-
-					}else if (dist < obs){
-						//clear out space in front of us
-						val = .5;
-					}else{
-						//this is space behind the obstacle.. don't modify
-						val=1;
-					}
-
-					conflatePixel(x+dx,y+dy,pow(val,scalingVal));//reduce the darkness of cells we are sitting on
-				}	
-			}
-		}	
-	}*/
 }
 
 
@@ -178,15 +99,7 @@ void processScan(Scan *scan){
 // 0 will plot as white and 1 will plot as black.
 
 Map localMap("test.pgm", "out.pgm", X_RES);
-
-/* initMap()
- *
- *set the map to all unknown.)
- */
-
-void initMap(){
-}
-
+Ploc localizer(100,500,&localMap);
 
 
 static void display() {
@@ -208,7 +121,7 @@ static void display() {
 	glEnd();
 
 	pthread_mutex_lock(&particles_mut);
-	for(vector<Particle>::iterator it=particles.begin();it<particles.end();it++){
+	for(vector<Particle>::iterator it=localizer.particles.begin();it<localizer.particles.end();it++){
 		it->draw();
 	}
 
@@ -255,92 +168,38 @@ void* robotLoop(void* args) {
 
 		Vector2d odometry(dx,dy);
 
-		Scan scans(Vector2d(x,y),SONAR);
-
-		for (int scan = 0; scan <8 ;scan ++){
-			scans.addScan(scan,getRange(scan));
+		Scan scans(Vector2d(x,y),LASER);
+		for (int scan = 0; scan < 681;scan ++){
+			scans.addScan(scan,(*pRanger)[scan]);
 		}
 
 		pthread_mutex_lock(&particles_mut);	
 		//seed particles at our current position
 		//update particles when we move
-		if(odometry.len() > .5 || abs(dtheta) > .1){
+		if(odometry.len() > .1 || abs(dtheta) > .1){
 			lastx=x;
 			lasty=y;
 			lasttheta=theta;	
-		
-			vector<Particle> newList;
-			for(vector<Particle>::iterator it=particles.begin();it<particles.end();it++){
-				vector<Particle> ret = it->update(odometry,dtheta,0);
-				int x = it->origin.x;	
-				int y = it->origin.y;	
-				if(x<-XOFFSET|| x>XOFFSET || y<-YOFFSET || y > YOFFSET)
-					particles.erase(it);
-				for (int j=0;j<ret.size();j++){
-					newList.push_back(ret[j]);
-				}
-			}
 
-			while(particles.size()< 1000){
-				double x,y;
-				do{
-					x= ((double)rand())/RAND_MAX*WIN_X_METERS-XOFFSET;
-					y= ((double)rand())/RAND_MAX*WIN_Y_METERS-YOFFSET;
-
-				}while(localMap.getVal(x,y) < .5 );	
-				Particle part(x,y,wrap(((double)rand())/RAND_MAX*2*PI));
-				particles.push_back(part);
+			double dlinear=odometry.len(); 
+			if(fabs(wrap(odometry.getAngle()-theta)) > PI/2){
+				dlinear *= -1;
 			}
+			localizer.replenishParticles();
+			localizer.updateParticles(dlinear,dtheta);
+			localizer.scoreParticles(&scans);
+			localizer.pruneParticles();
+			localizer.getPose();
 			//score each particle.
-			double avgscore=0;
-			double bestScore=0xFFFF;
-			double averagex,averagey,averagetheta;
-			int counter=0;
-			double score;
-			for(vector<Particle>::iterator it=particles.begin();it<particles.end();it++){
-				score = it->score(&localMap,&scans);	
-				avgscore += score;
-				if(score<bestScore){
-					bestScore=score;
-				}
-			}
-			avgscore /=particles.size();
-			for(vector<Particle>::iterator it=particles.begin();it<particles.end();it++){
-				score = it->score(&localMap,&scans);	
-				if(score < (avgscore+bestScore)/2 ){	
-					counter++;
-					for(int i=0;i<3;i++){
-						if(particles.size()<5000)
-							newList.push_back(Particle(*it));	
-					}
-					averagex+=it->origin.x;
-					averagey+=it->origin.y;
-					averagetheta+=it->theta;
-				}else{
 
-					particles.erase(it);
-				}
-			}
 
-			for(int i =0;i<newList.size();i++){
-				particles.push_back(newList[i]);
-			}
-			cout<<particles.size()<<" particles"<<endl;
-			averagex /= counter;
-			averagey /= counter;
-			averagetheta /= counter;
-			if (averagex < -XOFFSET || averagex > XOFFSET || averagey < -YOFFSET || averagey > YOFFSET){
-				averagex=0;
-				averagey=0;
-			}
 
-			pPosition->SetOdometry(averagex,averagey,wrap(averagetheta));
+			//pPosition->SetOdometry(averagex,averagey,wrap(averagetheta));
 			//lastx=averagex;
 			//lasty=averagey;
 			//lasttheta=wrap(averagetheta);
 		}
 		pthread_mutex_unlock(&particles_mut);
-		processScan(&scans);
 
 	}
 
@@ -362,6 +221,7 @@ int main(int argc, char *argv[]) {
 	pRobot = new PlayerClient( host, port );
 	pPosition = new Position2dProxy( pRobot, 0 );
 	pSonar = new SonarProxy( pRobot, 0 );
+	pRanger= new RangerProxy( pRobot, 0 );
 
 	printf("player connected on port %d, proxies allocated\n", port);
 	pPosition->SetMotorEnable(1);
@@ -379,7 +239,6 @@ int main(int argc, char *argv[]) {
 	pthread_t thread_id;
 	pthread_create(&thread_id, NULL, robotLoop, NULL);
 
-	initMap();
 
 	// Callbacks
 	glutDisplayFunc( display );
@@ -388,6 +247,11 @@ int main(int argc, char *argv[]) {
 	glutMainLoop();
 
 	pthread_mutex_lock(&display_mut);
+
+	free(pRobot);
+	free(pPosition);
+	free(pSonar);
+	free(pRanger);
 
 	return 0;
 }

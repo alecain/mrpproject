@@ -131,9 +131,11 @@ void Map::conflate(int x, int y, double newVal){
 	map[x][y] = (map[x][y]/this->maxVal + newVal)*this->maxVal/2;
 }
 
-double Map::raytrace(double x0, double y0, double angle){
+double Map::raytrace(double x0, double y0, double angle, double mrange){
 
 	int x=(x0/this->resolution)+this->x0, y=y0/this->resolution+ this->y0;
+	int x0i=x,y0i=y;
+	int maxRange= pow(mrange/resolution,2);
 	double slope = tan(angle);
 	
 	double sx,sy;
@@ -149,6 +151,9 @@ double Map::raytrace(double x0, double y0, double angle){
 		if (x < 0 || x >= this->x || y < 0 || y >= this->y){
 			break;
 		}
+		//really dumb range checking.. just to save computation time
+		if((x-x0i)*(x-x0i) + (y-y0i)*(y-y0i) > maxRange)
+			break;
 		if(this->getPixel(x,y) < 100)
 				break;
 		this->setPixel(x,y,100);
