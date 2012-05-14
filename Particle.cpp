@@ -12,17 +12,11 @@
 #include <GL/glut.h>
 #include "util.h"
 
-double Particle::thetaThetaCov=0.01;
-double Particle::thetaLinearCov=0.01;
-double Particle::linearLinearCov=0.01;
-double Particle::linearThetaCov=0.01;
+double Particle::thetaThetaCov=0.05;
+double Particle::thetaLinearCov=0.2;
+double Particle::linearLinearCov=0.4;
+double Particle::linearThetaCov=0.05;
 
-Particle::Particle(double x, double y, double theta){
-	this->origin.x=x;
-	this->origin.y=y;
-	this->theta=theta;
-	this->scoreVal=0;
-}
 double gaussian(){
 	double sum=0;
 	//compute an approximate gaussian
@@ -33,6 +27,20 @@ double gaussian(){
 	return sum-6.0;
 }
 
+Particle::Particle(double x, double y, double theta){
+	this->origin.x=x;
+	this->origin.y=y;
+	this->theta=theta;
+	this->scoreVal=0;
+}
+Particle Particle::clone(){
+	Particle clone(*this);
+	clone.origin.x += gaussian() * linearLinearCov *.1;
+	clone.origin.y += gaussian() * linearLinearCov *.1;
+	clone.theta += gaussian() * thetaThetaCov*.1;
+	clone.scoreVal=0;
+
+}
 vector<Particle> Particle::update(double dlinear,double dtheta, int toSpawn){
 
 	this->scoreVal=0;
@@ -45,12 +53,10 @@ vector<Particle> Particle::update(double dlinear,double dtheta, int toSpawn){
 		newTheta += dtheta + dtheta * thetaThetaCov * gaussian() + dlinear * thetaLinearCov * gaussian();
 		newOrigin += Vector2d(dlinear + dtheta * linearThetaCov * gaussian() + dlinear * linearLinearCov * gaussian(),0).rotate(newTheta);
 		ret.push_back(Particle(newOrigin.x, newOrigin.y, wrap(newTheta)));
-
 	}
 
-
 	this->theta += dtheta + dtheta* thetaThetaCov*gaussian()+dlinear*thetaLinearCov*gaussian();
-	this->theta=wrap(this->theta);	
+	this->theta=wrap(this->theta);
 	this->origin += Vector2d(dlinear + dtheta * linearThetaCov * gaussian() + dlinear * linearLinearCov * gaussian(),0).rotate(this->theta);
 	return ret;
 }
@@ -72,7 +78,7 @@ double Particle::score(Map *map, Scan *scan){
 		if (mapRange > 5.0){
 			mapRange=5.0;
 		}
-		cost += abs(it->range - mapRange);
+		cost += pow(it->range - mapRange,2);
 	}
 	scoreVal=cost;
 	return cost;

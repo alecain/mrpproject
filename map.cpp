@@ -71,7 +71,7 @@ Map::Map(string filename, int x, int y, double resolution){
 	this->x = x;
 	this->y = y;
 	this->maxVal= 255;
-	this->resolution=resolution;		
+	this->resolution=resolution;
 
 	this->map =(unsigned char**) malloc(sizeof(int **) * this->x); // allocate enough space for head of collumns
 	for(int x = 0; x< this->x; x++){
@@ -137,12 +137,12 @@ double Map::raytrace(double x0, double y0, double angle, double mrange){
 	int x0i=x,y0i=y;
 	int maxRange= pow(mrange/resolution,2);
 	double slope = tan(angle);
-	
+
 	double sx,sy;
 	if ( angle > -PI/2 && angle < PI/2) sx=1; else sx=-1;
 	if  ( angle > 0) sy=1; else sy=-1;
 	double dx, dy;
-	
+
 	dx=1;
 	dy=abs(slope);
 	double err= dx-dy;
@@ -156,7 +156,7 @@ double Map::raytrace(double x0, double y0, double angle, double mrange){
 			break;
 		if(this->getPixel(x,y) < 100)
 				break;
-		this->setPixel(x,y,100);
+		//this->setPixel(x,y,100);
 		double e2= 2*err;
 		
 		if(e2 > -1* dy){

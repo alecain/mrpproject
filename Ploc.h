@@ -9,7 +9,7 @@
 #define _PLOC_H
 
 
-#include <vector>
+#include <list>
 
 #include "util.h"
 #include "Particle.h"
@@ -30,7 +30,7 @@ class Ploc{
 		void scoreParticles(Scan *scans);
 		void pruneParticles();
 		Pose getPose(void);
-		vector<Particle> particles;
+		list<Particle> particles;
 	private:
 		Map *map;
 		int minParticles;

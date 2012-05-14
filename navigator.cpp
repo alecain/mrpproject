@@ -106,7 +106,7 @@ static void display() {
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluOrtho2D(	0, WIN_X, 0, WIN_Y );
+	gluOrtho2D( 0, WIN_X, 0, WIN_Y );
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
@@ -121,7 +121,8 @@ static void display() {
 	glEnd();
 
 	pthread_mutex_lock(&particles_mut);
-	for(vector<Particle>::iterator it=localizer.particles.begin();it<localizer.particles.end();it++){
+
+	for(list<Particle>::iterator it=localizer.particles.begin();it!=localizer.particles.end();it++){
 		it->draw();
 	}
 
@@ -137,12 +138,12 @@ static void display() {
 
 
 void redisplay(void) {
-	pthread_mutex_lock(&display_mut);	
+	pthread_mutex_lock(&display_mut);
 	glutPostRedisplay();
 }
 
 void* robotLoop(void* args) {
-	double lastx,lasty,lasttheta;
+	double lastx=0,lasty=0,lasttheta=0;
 	double x,y,theta;
 	double dx,dy,dtheta;
 	while(true) {
@@ -152,7 +153,9 @@ void* robotLoop(void* args) {
 		double turnrate, speed;
 
 		// read from the proxies
-		pRobot->Read();
+		do{
+			pRobot->Read();
+		}while(pRanger->GetRangeCount() == 0);
 
 		// Here is where you do your robot stuff
 		// including presumably updating your map somehow
@@ -169,17 +172,18 @@ void* robotLoop(void* args) {
 		Vector2d odometry(dx,dy);
 
 		Scan scans(Vector2d(x,y),LASER);
-		for (int scan = 0; scan < 681;scan ++){
+		for (int scan = 0; scan < pRanger->GetRangeCount();scan ++){
 			scans.addScan(scan,(*pRanger)[scan]);
 		}
 
-		pthread_mutex_lock(&particles_mut);	
+		cout<<"dtheta"<<dtheta<<" odom:"<<odometry<<endl;
 		//seed particles at our current position
 		//update particles when we move
-		if(odometry.len() > .1 || abs(dtheta) > .1){
+		if( odometry.len() > .1 || abs(dtheta) > .1){
+			pthread_mutex_lock(&particles_mut);
 			lastx=x;
 			lasty=y;
-			lasttheta=theta;	
+			lasttheta=theta;
 
 			double dlinear=odometry.len(); 
 			if(fabs(wrap(odometry.getAngle()-theta)) > PI/2){
@@ -198,8 +202,8 @@ void* robotLoop(void* args) {
 			//lastx=averagex;
 			//lasty=averagey;
 			//lasttheta=wrap(averagetheta);
+			pthread_mutex_unlock(&particles_mut);
 		}
-		pthread_mutex_unlock(&particles_mut);
 
 	}
 

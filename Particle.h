@@ -19,6 +19,7 @@ class Particle{
 	public:
 		Particle(double x, double y, double theta);
 		vector<Particle> update(double dlinear, double dtheta, int toSpawn);
+		Particle clone(void);
 		void draw(void);
 		double score(Map *map, Scan *scan);
 

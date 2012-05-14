@@ -1,19 +1,26 @@
 
 /*
- * particle based localization node 
+ * particle based localization node
  *
- *	Author: Andrew LeCain
+ *    Author: Andrew LeCain
  */
 
-#include <vector>
+
 #include <stdlib.h>
 #include <iostream>
+#include <list>
+#include <vector>
 
 #include "util.h"
 #include "Particle.h"
 #include "map.h"
 #include "Ploc.h"
 
+
+
+bool compare(Particle a, Particle b){
+	return (a.scoreVal < b.scoreVal );
+}
 
 
 Ploc::Ploc(int minParticles, int maxParticles, Map* map){
@@ -24,19 +31,23 @@ Ploc::Ploc(int minParticles, int maxParticles, Map* map){
 }
 void Ploc::updateParticles(double dlinear, double dtheta){
 	bestScore=0xFFFF;
-	for(vector<Particle>::iterator it=particles.begin();it<particles.end();it++){
-		vector<Particle> ret = it->update(dlinear,dtheta,0);
-		int x = it->origin.x;	
-		int y = it->origin.y;	
-		if(x<-XOFFSET|| x>XOFFSET || y<-YOFFSET || y > YOFFSET)
-			particles.erase(it);
+	
+	for(list<Particle>::iterator it=particles.begin();it!=particles.end();){
+		vector<Particle> ret= it->update(dlinear,dtheta,0);
+		double x = it->origin.x;
+		double y = it->origin.y;
+		if(x<-XOFFSET|| x>XOFFSET || y<-YOFFSET || y > YOFFSET){
+			particles.erase(it++);
+		}else{
+			it++;
+		}
 	}
 }
 void Ploc::scoreParticles(Scan *scans){
 	double score;
 
-	for(vector<Particle>::iterator it=particles.begin();it!=particles.end();it++){
-		score = it->score(map,scans);	
+	for(list<Particle>::iterator it=particles.begin();it!=particles.end();it++){
+		score = it->score(map,scans);
 		avgscore += score;
 		if(score<bestScore){
 			bestScore=score;
@@ -46,37 +57,45 @@ void Ploc::scoreParticles(Scan *scans){
 }
 void Ploc::replenishParticles(void){
 	//Replenish with random valid particles
-	while(particles.size()< minParticles){
+	while(particles.size()< maxParticles){
 		double x,y;
 		do{
 			x= ((double)rand())/RAND_MAX*WIN_X_METERS-XOFFSET;
 			y= ((double)rand())/RAND_MAX*WIN_Y_METERS-YOFFSET;
 
-		}while(map->getVal(x,y) < .5 );	
+		}while(map->getVal(x,y) < .5 );
 		Particle part(x,y,wrap(((double)rand())/RAND_MAX*2*PI));
 		particles.push_back(part);
 	}
 }
 void Ploc::pruneParticles(){
 	double score;
-	vector<Particle> newList;
-	for(vector<Particle>::iterator it=particles.begin();it<particles.end();it++){
-		score = it->scoreVal;
-		if(score < (avgscore+bestScore)/2 ){	
-			for(int i=0;i<3;i++){
-				if(particles.size()+newList.size()<maxParticles)
-					newList.push_back(Particle(*it));	
-			}
-		}else{
+	int count=0;
+	int cloneCount=0;
+	list<Particle> newList;
 
-			particles.erase(it);
+	cout<<"before: "<< particles.size() ;
+	//first sort from best to worst
+	particles.sort(compare);
+	//now prune the list
+	for(list<Particle>::iterator it=particles.begin();it!=particles.end();){
+		if(count++ < this->minParticles){
+			if(newList.size()< minParticles){
+				newList.push_back(*it);
+				cout<<".";
+			}
+			++it;
+		}else if(count < this->minParticles*2){
+			//don't duplicate these.. just let them be
+		}
+		else{
+			particles.erase(it++);
 		}
 	}
-
-	for(int i =0;i<newList.size();i++){
-		particles.push_back(newList[i]);
-	}
-
+	//insert the cloned particles in order
+	cout<<"pruned: "<< particles.size() ;
+	cout<<"after: "<< newList.size()<<endl;
+	particles.merge(newList,compare);
 }
 Pose Ploc::getPose(void){
 	Pose p;
@@ -87,7 +106,7 @@ Pose Ploc::getPose(void){
 	p.theta=0;
 
 	//perform a weighted average of the particles based on score
-	for(vector<Particle>::iterator it=particles.begin();it<particles.end();it++){
+	for(list<Particle>::iterator it=particles.begin();it!=particles.end();it++){
 		score = it->scoreVal;
 		if(score < avgscore){
 			p.x+=it->origin.x*avgscore/score;
@@ -95,11 +114,10 @@ Pose Ploc::getPose(void){
 			p.theta+=it->theta*avgscore/score;
 			counter+=avgscore/score;
 		}
-	}	
+	}
 	p.x /= counter;
 	p.y /= counter;
 	p.theta/= counter;
 
-	std::cout<<particles.size()<<" particles. x:"<<p.x<<" y:"<<p.y<<" theta:"<<p.theta <<std::endl;
 	return p;
 }
