@@ -1,7 +1,7 @@
-
 #include <ostream>
 #ifndef _VECTOR_H
 #define _VECTOR_H
+
 
 class Vector2d{
 	public:
@@ -12,6 +12,7 @@ class Vector2d{
 		Vector2d(double x, double y);
 		
 		Vector2d operator+=(Vector2d);
+		void drawAt(double angle);
 
 		Vector2d norm();
 		Vector2d clip(double max);
@@ -31,4 +32,5 @@ class Vector2d{
 
 };
 
+std::ostream& operator<<(std::ostream& out, const Vector2d& v);
 #endif

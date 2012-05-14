@@ -9,19 +9,21 @@
 #include <string>
 using namespace std;
 
-#define RESOLUTION 0.05 	//5 cm per pixel
+
+#ifndef _MAP_H
+#define _MAP_H
 
 
 class Map{
 
 	public:
-		Map(string filename, string copyto); //load an existing map
-		Map(string filename, int x, int y);//create a new map of size x y
-		Map(string filename, double x, double y);//create a new map of size x y
+		Map(string filename, string copyto, double resolution); //load an existing map
+		Map(string filename, int x, int y, double resolution);//create a new map of size x y
+		Map(string filename, double x, double y, double resolution);//create a new map of size x y
 		void save(void);
-		int getVal(int x, int y);
+		unsigned char getPixel(int x, int y);
 		double getVal(double x, double y);
-		void setVal(int x, int y, double newVal);
+		void setPixel(int x, int y, unsigned char newVal);
 		void setVal(double x, double y, double newVal);
 		void conflate(int x, int y, double newVal);
 		void conflate(double x, double y, double newVal);
@@ -30,8 +32,12 @@ class Map{
 
 	private:
 		string filename;
+		int x0,y0; //origin
+		double resolution;	
 		int x,y;
 		int maxVal;
-		int **map;
+		unsigned char **map;
 			
 };
+
+#endif

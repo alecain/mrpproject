@@ -6,6 +6,8 @@
  */
 #include "Vector2d.h"
 #include <vector>
+#include "map.h"
+#include "Scan.h"
 using namespace std;
 
 
@@ -13,7 +15,10 @@ using namespace std;
 class Particle{
 	public:
 		Particle(double x, double y, double theta);
-		vector<Particle> update(Vector2d odometry, int toSpawn);
+		vector<Particle> update(Vector2d odometry, double dtheta, int toSpawn);
+		void draw(void);
+		double score(Map *map, Scan *scan);
+
 		Vector2d origin;
 		double theta;
 		static double thetaThetaCov;
@@ -25,6 +30,7 @@ class Particle{
 		static void setTLCovariance(double thetaLinearCov); 
 		static void setLLCOvariance(double linearLinearCov); 
 		static void setLTCovariance(double linearThetaCov); 
-
+	private:
+		double scoreVal;	
 };
 

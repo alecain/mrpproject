@@ -12,6 +12,7 @@ using namespace std;
  */
 
 #define PI 3.14159265
+#define toRad(deg) (deg*PI/180.0)
 
 
 double getDistance(double x1, double y1, double x2, double y2){
@@ -19,7 +20,7 @@ double getDistance(double x1, double y1, double x2, double y2){
 }
 
 
-std::ostream& operator<<(std::ostream& out, const Vector2d& v){
+std::ostream& operator<<(ostream& out, const Vector2d& v){
 	return out << "x: "<<v.x <<"\ty : " << v.y << "\tmagnitude: "<< v.len()  <<"\ttheta: " << v.getAngle()*180.0 / PI <<std::endl;
 }
 
@@ -32,6 +33,8 @@ Vector2d::Vector2d(double x, double y){
 	this->x=x;
 	this->y=y;
 }
+
+
 Vector2d Vector2d::minus(Vector2d b){
 	Vector2d ret;
 	ret.x=this->x-b.x;

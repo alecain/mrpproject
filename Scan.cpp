@@ -25,17 +25,24 @@ const double pose[8][4] = {
 	{  0.075, -0.130, toRad(-90)}};
 
 
+ScanNode::ScanNode(Vector2d origin, double angle, double range){
+	this->origin=origin;
+	this->angle=angle;
+	this->range=range;
+}
+
+
 Scan::Scan(Vector2d origin, ScanType type){
 	this->origin = origin;
+	this->type=type;
 }
 
 void Scan::addScan(double angle, double len){
-	int index=this->angleToIndex(angle);
-	this->addScan(index, len);
+	ScanNode scan(this->origin, angle,len);
+	this->scans.push_back(scan);	
 }
 void Scan::addScan(int index, double len){
-	Vector2d scan(len,0);
-	scan.rotate(pose[index][2]);
+	ScanNode scan(Vector2d(this->sensorX(index), this->sensorY(index)), this->indexToAngle(index), len);
 	this->scans.push_back(scan);	
 }
 int Scan::len(){
@@ -59,21 +66,21 @@ int Scan::angleToIndex(double angle){
 
 double Scan::sensorX(int index){
 	if (this->type ==SONAR)
-		return (pose[index][0] + this->origin.x);
+		return (pose[index][0]);
 	return this->origin.x;
 }
 double Scan::sensorY(int index){
 	if (this->type ==SONAR)
-		return (pose[index][1] + this->origin.y);
+		return (pose[index][1] );
 	return this->origin.y;
 }
 
 Vector2d Scan::getObstacle(int index){
-	Vector2d scan = this->scans[index];
-	scan+= this->origin;	
+	Vector2d scan = this->scans[index].origin;
+	scan+= Vector2d(this->scans[index].range,0).rotateAbs(this->scans[index].angle);	
 }
 
 double Scan::getRange(int index){
-	return scans[index].len();
+	return scans[index].range;
 }
 

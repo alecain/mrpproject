@@ -12,13 +12,14 @@
 #include <iostream>
 #include <cmath>
 #include "map.h"
+#include "util.h"
 
-#define PI 3.14159
-#define toRad(deg) (deg*PI/180.0)
 using namespace std;
 
-Map::Map(string filename, string copyto){
+Map::Map(string filename, string copyto, double resolution){
 	this->filename=copyto;
+	this->resolution=resolution;
+
 	FILE *f;
 
 	f=fopen(filename.c_str(),"r");
@@ -35,19 +36,23 @@ Map::Map(string filename, string copyto){
 	fscanf(f,"%d", &this->x);
 	fscanf(f,"%d", &this->y);
 	fscanf(f,"%d", &this->maxVal);
+	this->x0 = this->x/2;
+	this->y0 = this->y/2;
 
-	this->map =(int **) malloc(sizeof(int **) * this->x); // allocate enough space for head of collumns
+
+	this->map =(unsigned char**) malloc(sizeof(int **) * this->x); // allocate enough space for head of collumns
 	for(int x = 0; x< this->x; x++){
-		this->map[x] =(int *) malloc(sizeof(int *) * this->y); // allocate enough space for the row
+		this->map[x] =(unsigned char*) malloc(sizeof(int *) * this->y); // allocate enough space for the row
 	}	
 
-	for (int y = 0; y < this->y;y++){
+	unsigned char c;
+	for (int y = this->y-1; y >=0;y--){
 		for(int x = 0; x< this->x; x++){
-			if(fread(buf,sizeof(char),1,f) != 1){
+			if(fread(&c,sizeof(char),1,f) != 1){
 				std::cerr<< filename <<" is not a valid PGM file"<<std::endl;
 				exit(-1);
 			}
-			map[x][y]=buf[0];
+			map[x][y]=c;
 		}
 	}
 
@@ -56,20 +61,22 @@ Map::Map(string filename, string copyto){
 	std::cout<<filename<<" loaded successfully!"<<std::endl;
 }
 
-Map::Map(string filename, double x, double y){
-	Map(filename, x*RESOLUTION, y *RESOLUTION);
+Map::Map(string filename, double x, double y, double resolution){
+	this->resolution=resolution;
+	Map(filename, x*resolution, y *resolution, resolution);
 }
 
-Map::Map(string filename, int x, int y){
+Map::Map(string filename, int x, int y, double resolution){
 	this->filename=filename;
 	this->x = x;
 	this->y = y;
 	this->maxVal= 255;
-		
-	this->map =(int **) malloc(sizeof(int **) * this->x); // allocate enough space for head of collumns
+	this->resolution=resolution;		
+
+	this->map =(unsigned char**) malloc(sizeof(int **) * this->x); // allocate enough space for head of collumns
 	for(int x = 0; x< this->x; x++){
-		this->map[x] =(int *) malloc(sizeof(int *) * this->y); // allocate enough space for the row
-		memset(this->map[x],128,this->y*4);
+		this->map[x] =(unsigned char*) malloc(sizeof(int *) * this->y); // allocate enough space for the row
+		memset(this->map[x],128,this->y);
 	}
 }
 
@@ -83,7 +90,7 @@ void Map::save(void){
 	int len = sprintf(buf,"P5 %d %d %d ", this->x, this->y, this->maxVal);
 	fwrite(buf,sizeof(char), len, f); //print all but the trailing null
 
-	for(int y=0;y<this->y;y++){
+	for(int y=0; y<this->y ;y++){
 		for(int x=0;x<this->x;x++){
 			buf[0]=this->map[x][y];
 			fwrite(buf,sizeof(char),1,f);
@@ -102,19 +109,23 @@ Map::~Map(){
 }
 
 double Map::getVal(double x, double y){
-	return this->getVal(x*RESOLUTION, y*RESOLUTION)/maxVal;
+	return this->getPixel(x/this->resolution+x0,y/this->resolution+y0)/255.0;
 }
-int Map::getVal(int x, int y){
+unsigned char Map::getPixel(int x, int y){
+	if (x< 0 || x>=this->x || y< 0 || y>= this->y){
+		cerr<<x<<","<<y<<" is out of bounds!"<<endl;
+		return 0;
+	}
 	return map[x][y];
 }
 void Map::setVal(double x, double y, double newVal){
-	setVal(x*RESOLUTION, y*RESOLUTION, newVal);
+	setVal(x/this->resolution+x0, y/this->resolution+x0, newVal);
 }
-void Map::setVal(int x, int y, double newVal){
-	map[x][y]= newVal*maxVal;
+void Map::setPixel(int x, int y, unsigned char newVal){
+	map[x][y]= newVal;
 }
 void Map::conflate(double x, double y, double newVal){
-	conflate(x*RESOLUTION, y*RESOLUTION, newVal);
+	conflate(x/this->resolution+x0, y/this->resolution+y0, newVal);
 }
 void Map::conflate(int x, int y, double newVal){
 	map[x][y] = (map[x][y]/this->maxVal + newVal)*this->maxVal/2;
@@ -122,12 +133,12 @@ void Map::conflate(int x, int y, double newVal){
 
 double Map::raytrace(double x0, double y0, double angle){
 
-	int x=(x0)* RESOLUTION + this->x, y=y0*RESOLUTION+ this->y;
+	int x=(x0/this->resolution)+this->x0, y=y0/this->resolution+ this->y0;
 	double slope = tan(angle);
 	
 	double sx,sy;
-	if ( angle > toRad(-90) && angle < toRad(90)) sx=1; else sx=-1;
-	if  ( angle > 0 && angle < toRad(180)) sy=1; else sy=-1;
+	if ( angle > -PI/2 && angle < PI/2) sx=1; else sx=-1;
+	if  ( angle > 0) sy=1; else sy=-1;
 	double dx, dy;
 	
 	dx=1;
@@ -138,8 +149,9 @@ double Map::raytrace(double x0, double y0, double angle){
 		if (x < 0 || x >= this->x || y < 0 || y >= this->y){
 			break;
 		}
-		if(this->getVal(x,y) < 10)
+		if(this->getPixel(x,y) < 100)
 				break;
+		this->setPixel(x,y,100);
 		double e2= 2*err;
 		
 		if(e2 > -1* dy){
@@ -152,16 +164,17 @@ double Map::raytrace(double x0, double y0, double angle){
 		}
 	}
 
-	return sqrt(pow(x-x0,2)+pow(y-y0,2));
+	double range = sqrt( pow(x0-(x-this->x0)*this->resolution,2)+pow(y0-(y-this->y0)*this->resolution,2));
+	return range;
 }
 
 /*
-int main(int argc, char *argv[]) {
-	Map map(argv[1], argv[2]);
-	Map blank("blank.pgm", 100, 100);
-	cout<<"1 "<<map.raytrace(0,0, toRad(-45))<<endl;
-	cout<<"2 "<<map.raytrace(0,0, toRad(135))<<endl;
-	cout<<"3 "<<map.raytrace(0,0, toRad(45))<<endl;
-	cout<<"4 "<<map.raytrace(0,0, toRad(-135))<<endl;
-}*/
+   int main(int argc, char *argv[]) {
+   Map map(argv[1], argv[2]);
+   Map blank("blank.pgm", 100, 100);
+   cout<<"1 "<<map.raytrace(0,0, toRad(-45))<<endl;
+   cout<<"2 "<<map.raytrace(0,0, toRad(135))<<endl;
+   cout<<"3 "<<map.raytrace(0,0, toRad(45))<<endl;
+   cout<<"4 "<<map.raytrace(0,0, toRad(-135))<<endl;
+   }*/
 

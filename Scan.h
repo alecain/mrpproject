@@ -18,6 +18,14 @@ typedef enum{
 
 }ScanType;
 
+class ScanNode{
+	public:
+		ScanNode(Vector2d origin, double angle, double range);
+		Vector2d origin;
+		double angle;
+		double range;
+};
+
 
 class Scan{
 	public:
@@ -34,8 +42,7 @@ class Scan{
 
 		ScanType type;
 		Vector2d origin;
-	private:
-		vector<Vector2d> scans;
+		vector<ScanNode> scans;
 };
 
 #endif
