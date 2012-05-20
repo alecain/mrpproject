@@ -173,6 +173,22 @@ double Map::raytrace(double x0, double y0, double angle, double mrange){
 	return range;
 }
 
+double Map::getPixelWidth() {
+	return x;
+}
+
+double Map::getPixelHeight() {
+	return y;
+}
+
+double Map::getPixelLeft() {
+	return -x0;
+}
+
+double Map::getPixelTop() {
+	return -y0;
+}
+
 /*
    int main(int argc, char *argv[]) {
    Map map(argv[1], argv[2]);

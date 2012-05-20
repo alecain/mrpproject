@@ -28,6 +28,10 @@ class Map{
 		void conflate(int x, int y, double newVal);
 		void conflate(double x, double y, double newVal);
 		double raytrace(double x, double y, double angle, double maxRange);
+		double getPixelWidth();
+		double getPixelHeight();
+		double getPixelLeft();
+		double getPixelTop();
 		~Map();
 
 	private:

@@ -10,3 +10,12 @@
 *.lai
 *.la
 *.a
+
+# Build System
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+tags
+
+navigator

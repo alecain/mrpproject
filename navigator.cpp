@@ -14,6 +14,8 @@
 #include "map.h"
 #include "Ploc.h"
 #include "Particle.h"
+#include "PathPlanner.h"
+#include "PathPoint.h"
 
 using namespace PlayerCc;
 using namespace std;
@@ -100,13 +102,13 @@ double getRange(int index){
 
 Map localMap("test.pgm", "out.pgm", X_RES);
 Ploc localizer(100,500,&localMap);
-
+PathPlanner planner(&localMap);
 
 static void display() {
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluOrtho2D(	0, WIN_X, 0, WIN_Y );
+	gluOrtho2D( 0, WIN_X, 0, WIN_Y );
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
@@ -124,6 +126,28 @@ static void display() {
 	for(vector<Particle>::iterator it=localizer.particles.begin();it<localizer.particles.end();it++){
 		it->draw();
 	}
+
+	// Draw the paths
+	glLineWidth(1);
+	glColor3ub(200, 200, 255);
+	for (vector< pair<PathPoint *, PathPoint *> >::const_iterator path = planner.getConnectionsBegin(); path < planner.getConnectionsEnd(); path++) {
+		glBegin(GL_LINE_STRIP);
+		glVertex2d(path->first->getX()/2, path->first->getY()/2);
+		glVertex2d(path->second->getX()/2, path->second->getY()/2);
+		glEnd();
+	}
+
+	// Draw the waypoints
+	glBegin(GL_POINTS);
+	glColor3ub(0, 150, 0);
+
+	for (vector<PathPoint *>::const_iterator point = planner.getPointsBegin(); point < planner.getPointsEnd(); point++)
+		// Why do I have to divide by 2
+		glVertex2i((*point)->getX()/2, (*point)->getY()/2);
+
+	glEnd();
+
+
 
 	pthread_mutex_unlock(&particles_mut);
 
@@ -152,7 +176,8 @@ void* robotLoop(void* args) {
 		double turnrate, speed;
 
 		// read from the proxies
-		pRobot->Read();
+		// PlayerStage is horseshit
+		while (pRobot->Read(), pRanger->GetElementCount() == 0);
 
 		// Here is where you do your robot stuff
 		// including presumably updating your map somehow
@@ -218,10 +243,12 @@ int main(int argc, char *argv[]) {
 		exit(-1);
 	}
 
+	srand(time(NULL));
+
 	pRobot = new PlayerClient( host, port );
-	pPosition = new Position2dProxy( pRobot, 0 );
-	pSonar = new SonarProxy( pRobot, 0 );
-	pRanger= new RangerProxy( pRobot, 0 );
+	pPosition = new Position2dProxy( pRobot );
+	pSonar = new SonarProxy( pRobot );
+	pRanger= new RangerProxy( pRobot );
 
 	printf("player connected on port %d, proxies allocated\n", port);
 	pPosition->SetMotorEnable(1);
@@ -229,6 +256,7 @@ int main(int argc, char *argv[]) {
 	pthread_mutex_init(&display_mut, NULL);
 	pthread_mutex_init(&particles_mut, NULL);
 
+	planner.generateWaypoints(1000);
 
 	glutInit( &argc, argv );
 	glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE );
