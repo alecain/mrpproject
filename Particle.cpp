@@ -8,14 +8,15 @@
 #include <vector>
 #include <iostream>
 #include <cmath>
+#include <time.h>
 #include <stdlib.h>
 #include <GL/glut.h>
 #include "util.h"
 
-double Particle::thetaThetaCov=0.05;
+double Particle::thetaThetaCov=0.01;
 double Particle::thetaLinearCov=0.2;
 double Particle::linearLinearCov=0.4;
-double Particle::linearThetaCov=0.05;
+double Particle::linearThetaCov=0.01;
 
 double gaussian(){
 	double sum=0;
@@ -24,7 +25,7 @@ double gaussian(){
 		sum += ((double) rand())/RAND_MAX;
 	}
 
-	return sum-6.0;
+	return (sum-6.0);
 }
 
 Particle::Particle(double x, double y, double theta){
@@ -32,20 +33,23 @@ Particle::Particle(double x, double y, double theta){
 	this->origin.y=y;
 	this->theta=theta;
 	this->scoreVal=0;
+	this->creation= clock();//set the creation time
 }
 Particle Particle::clone(){
 	Particle clone(*this);
-	clone.origin.x += gaussian() * linearLinearCov *.1;
-	clone.origin.y += gaussian() * linearLinearCov *.1;
-	clone.theta += gaussian() * thetaThetaCov*.1;
-	clone.scoreVal=0;
+	clone.origin.x = this->origin.x + gaussian() * linearLinearCov *.05;
+	clone.origin.y = this->origin.y +gaussian() * linearLinearCov *.05;
+	clone.theta = this->theta + gaussian() * thetaThetaCov*.05;
+	clone.scoreVal = 0;
+	clone.creation = clock();
 
+	return clone;
 }
 vector<Particle> Particle::update(double dlinear,double dtheta, int toSpawn){
 
 	this->scoreVal=0;
 	vector<Particle> ret;
-	
+
 
 	for(int i=0;i<toSpawn;i++){
 		double newTheta = this->theta;
@@ -55,7 +59,7 @@ vector<Particle> Particle::update(double dlinear,double dtheta, int toSpawn){
 		ret.push_back(Particle(newOrigin.x, newOrigin.y, wrap(newTheta)));
 	}
 
-	this->theta += dtheta + dtheta* thetaThetaCov*gaussian()+dlinear*thetaLinearCov*gaussian();
+	this->theta += dtheta + dtheta* thetaThetaCov* gaussian()+dlinear*thetaLinearCov*gaussian();
 	this->theta=wrap(this->theta);
 	this->origin += Vector2d(dlinear + dtheta * linearThetaCov * gaussian() + dlinear * linearLinearCov * gaussian(),0).rotate(this->theta);
 	return ret;
@@ -65,8 +69,9 @@ double Particle::score(Map *map, Scan *scan){
 	if (scoreVal != 0){
 		return scoreVal;
 	}
-	double cost= 0xFFFF;
-	for (vector<ScanNode>::iterator it= scan->scans.begin(); it < scan->scans.end(); it+=2){
+	double cost=0;
+
+	for (vector<ScanNode>::iterator it= scan->scans.begin(); it < scan->scans.end(); it++){
 		double mapRange= 0xFFFF;
 		for(double i =-it->width/2; i < it->width/2; i+= toRad(1)){
 			double ray = map->raytrace(it->origin.x + this->origin.x,
@@ -74,12 +79,19 @@ double Particle::score(Map *map, Scan *scan){
 					wrap(i+it->angle+this->theta),
 					MAX_RANGE);
 			mapRange=min(mapRange,ray);
-		}		
-		if (mapRange > 5.0){
-			mapRange=5.0;
 		}
-		cost += pow(it->range - mapRange,2);
+		if (mapRange > MAX_RANGE){
+			mapRange=MAX_RANGE;
+		}
+		cost += it->Score(mapRange);
 	}
 	scoreVal=cost;
-	return cost;
+	time_t temp;
+	temp = clock();
+
+	double age = (temp-creation)/CLOCKS_PER_SEC; //now minus then
+	if ( age > 15 ) age = 15;
+	scoreVal -=age;
+
+	return scoreVal;
 }

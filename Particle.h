@@ -9,6 +9,7 @@
 
 #include "Vector2d.h"
 #include <vector>
+#include <time.h>
 #include "map.h"
 #include "Scan.h"
 using namespace std;
@@ -25,6 +26,7 @@ class Particle{
 
 		Vector2d origin;
 		double theta;
+		time_t creation;
 		static double thetaThetaCov;
 		static double thetaLinearCov;
 		static double linearLinearCov;
@@ -34,6 +36,6 @@ class Particle{
 		static void setTLCovariance(double thetaLinearCov); 
 		static void setLLCOvariance(double linearLinearCov); 
 		static void setLTCovariance(double linearThetaCov); 
-		double scoreVal;	
+		double scoreVal;
 };
 #endif

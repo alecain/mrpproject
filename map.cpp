@@ -16,6 +16,17 @@
 
 using namespace std;
 
+
+
+int Map::xToMap(double x){
+	return x/this->resolution +x0;
+}
+
+int Map::yToMap(double y){
+	return y/this->resolution +y0;
+}
+
+
 Map::Map(string filename, string copyto, double resolution){
 	this->filename=copyto;
 	this->resolution=resolution;
@@ -108,8 +119,11 @@ Map::~Map(){
 
 }
 
+bool Map::isOccupied(double x, double y){
+	return ((double)this->getPixel(xToMap(x),yToMap(y))) < 200;
+}
 double Map::getVal(double x, double y){
-	return this->getPixel(x/this->resolution+x0,y/this->resolution+y0)/255.0;
+	return ((double)this->getPixel(xToMap(x),yToMap(y)))/this->maxVal;
 }
 unsigned char Map::getPixel(int x, int y){
 	if (x< 0 || x>=this->x || y< 0 || y>= this->y){
@@ -155,10 +169,10 @@ double Map::raytrace(double x0, double y0, double angle, double mrange){
 		if((x-x0i)*(x-x0i) + (y-y0i)*(y-y0i) > maxRange)
 			break;
 		if(this->getPixel(x,y) < 100)
-				break;
+			break;
 		//this->setPixel(x,y,100);
 		double e2= 2*err;
-		
+
 		if(e2 > -1* dy){
 			err -= dy;
 			x+=sx;

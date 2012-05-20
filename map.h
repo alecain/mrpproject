@@ -23,21 +23,25 @@ class Map{
 		void save(void);
 		unsigned char getPixel(int x, int y);
 		double getVal(double x, double y);
+		bool isOccupied(double x, double y);
 		void setPixel(int x, int y, unsigned char newVal);
 		void setVal(double x, double y, double newVal);
 		void conflate(int x, int y, double newVal);
 		void conflate(double x, double y, double newVal);
 		double raytrace(double x, double y, double angle, double maxRange);
+
+		int xToMap(double x);
+		int yToMap(double y);
 		~Map();
 
-	private:
 		string filename;
+	private:
 		int x0,y0; //origin
-		double resolution;	
+		double resolution;
 		int x,y;
 		int maxVal;
 		unsigned char **map;
-			
+
 };
 
 #endif

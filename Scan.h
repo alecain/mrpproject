@@ -21,6 +21,7 @@ typedef enum{
 class ScanNode{
 	public:
 		ScanNode(Vector2d origin, double angle, double range, double width);
+		double Score(double ideal);
 		Vector2d origin;
 		double angle;
 		double range;

@@ -6,12 +6,12 @@
  */
 
 
+#include "util.h"
 #include "Scan.h"
 #include "Vector2d.h"
 #include <vector>
+#include <cmath>
 
-#define PI 3.14159
-#define toRad(deg) (deg*PI/180.0)
 
 
 const double pose[8][4] = {
@@ -33,6 +33,29 @@ ScanNode::ScanNode(Vector2d origin, double angle, double range , double width){
 
 }
 
+//function to score a scan compared to an ideal range that we think we should get. lower is better
+double ScanNode::Score(double ideal){
+	double ret=0;
+	if (range > MAX_RANGE){
+		range = MAX_RANGE;
+	}
+
+	double delta = pow(range - ideal,2);
+
+	return delta;
+	if (range > MAX_RANGE * .9 && ideal < MAX_RANGE){ // could be a missed scan.
+		ret = .4;
+	}else if(range < ideal * .9){ //range < ideal.. maybe we hit some obstacle on the map. Still not good.
+		ret = 2*delta;
+	} else if ( range < ideal * 1.1){ //range ~ ideal. Good!
+		ret=.1*delta;
+	} else{ //scan is between ideal and max. This basically means we missed;
+		ret = 5*delta;
+	}
+
+	return ret;
+}
+
 
 Scan::Scan(Vector2d origin, ScanType type){
 	this->origin = origin;
@@ -43,6 +66,9 @@ void Scan::addScan(double angle, double len){
 	double width;
 	if (type== SONAR){
 		width=toRad(20);
+		if (len < .3){ //forgot this about sonars...
+			len = MAX_RANGE;
+		}
 	}else{
 		width=toRad(0);
 	}
@@ -57,7 +83,7 @@ void Scan::addScan(int index, double len){
 		width=toRad(2.844);
 	}
 	ScanNode scan(Vector2d(this->sensorX(index), this->sensorY(index)), this->indexToAngle(index), len,width);
-	this->scans.push_back(scan);	
+	this->scans.push_back(scan);
 }
 int Scan::len(){
 	return scans.size(); 
@@ -85,7 +111,7 @@ double Scan::sensorX(int index){
 }
 double Scan::sensorY(int index){
 	if (this->type ==SONAR)
-		return (pose[index][1] );
+		return (pose[index][1]);
 	return 0; 
 }
 

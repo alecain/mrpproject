@@ -20,6 +20,8 @@
 class Pose{
 	public:
 	double x,y,theta;
+	double sigx,sigy,sigtheta;//standard deviations
+	void draw(void);
 };
 
 class Ploc{
@@ -29,7 +31,7 @@ class Ploc{
 		void replenishParticles(void);
 		void scoreParticles(Scan *scans);
 		void pruneParticles();
-		Pose getPose(void);
+		Pose getPose(int toAverage=25);
 		list<Particle> particles;
 	private:
 		Map *map;

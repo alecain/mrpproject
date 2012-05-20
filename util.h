@@ -18,7 +18,7 @@
 
 #define UNEXPLORED 1
 
-#define X_RES	0.066	
+#define X_RES	0.066
 #define Y_RES	0.066
 
 #define WIN_X 2000/SCALE
@@ -33,9 +33,10 @@
 #define windowX(x) ((x+XOFFSET)/X_RES/SCALE)
 #define windowY(y) ((y+YOFFSET)/Y_RES/SCALE)
 inline double wrap(double angle){
+	
 	double ret = angle;
-	while (ret<-PI) ret+= 2*PI;
-	while (ret>PI) ret+= -2*PI;
+	while(ret < -PI) ret += 2*PI;
+	while(ret > PI) ret -= 2*PI;
 	return ret;
 
 }

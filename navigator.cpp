@@ -1,7 +1,10 @@
-// Example of pixel-plotting together with Player/Stage robot control
-// zjb 4/10, based on code by John Hawley and original uncredited
-//   Player/Stage example code.
-// Not guaranteed to be decent code style but seems to work OK.
+/*
+ *Main navigator source file. I bet you can't guess what I gutted to write it
+ *
+ *
+ */
+
+#define SCAN_SONAR
 
 #include <GL/glut.h>
 #include <libplayerc++/playerc++.h>
@@ -63,6 +66,36 @@ void Particle::draw(){
 	glColor3ub(255,0,0);	
 	glLineWidth(1);
 	glBegin(GL_LINE_STRIP);	
+	glVertex2d(windowX(x0),windowY(y0));
+	glVertex2d(windowX(x1),windowY(y1));
+	glVertex2d(windowX(x2),windowY(y2));
+	glVertex2d(windowX(x1),windowY(y1));
+	glVertex2d(windowX(x3),windowY(y3));
+	glEnd();
+
+}
+void Pose::draw(){
+	//draw a vector of lenth 1m starting v.x, v.y at angle theta
+	//	  v1
+	//	/ | \
+	//    v2  |  v3
+	//	  |
+	//        v0
+
+	double x0=this->x;
+	double y0=this->y;
+	double x1=(x0+cos(this->theta)*2);
+	double y1=(y0+sin(this->theta)*2);
+	double x2=(x1-cos(this->theta+toRad(30))*.6);
+	double y2=(y1-sin(this->theta+toRad(30))*.6);
+	double x3=(x1-cos(this->theta-toRad(30))*.6);
+	double y3=(y1-sin(this->theta-toRad(30))*.6);
+	
+
+	//pose is green
+	glColor3ub(0,255,0);	
+	glLineWidth(2);
+	glBegin(GL_LINE_STRIP);	
 	glVertex2d(windowX(x0),windowY(y0));	
 	glVertex2d(windowX(x1),windowY(y1));	
 	glVertex2d(windowX(x2),windowY(y2));	
@@ -82,8 +115,21 @@ void Particle::draw(){
 
 
 //abstraction of the ranger and sonar
+int rangeCount(){
+	#ifdef SCAN_SONAR
+	return 8;
+	#else
+	return pRanger->GetRangeCount();
+	#endif
+}
+
+//abstraction of the ranger and sonar
 double getRange(int index){
+	#ifdef SCAN_SONAR
 	return (*pSonar)[index];
+	#else
+	return (*pRanger)[index];
+	#endif
 }
 
 
@@ -99,8 +145,8 @@ double getRange(int index){
 // 0 will plot as white and 1 will plot as black.
 
 Map localMap("test.pgm", "out.pgm", X_RES);
-Ploc localizer(100,500,&localMap);
-
+Ploc localizer(800,3000,&localMap);
+Pose estimate;
 
 static void display() {
 
@@ -125,6 +171,7 @@ static void display() {
 	for(list<Particle>::iterator it=localizer.particles.begin();it!=localizer.particles.end();it++){
 		it->draw();
 	}
+	estimate.draw();
 
 	pthread_mutex_unlock(&particles_mut);
 
@@ -149,17 +196,15 @@ void* robotLoop(void* args) {
 	while(true) {
 
 		redisplay();
-
 		double turnrate, speed;
 
 		// read from the proxies
 		do{
 			pRobot->Read();
-		}while(pRanger->GetRangeCount() == 0);
+		}while(rangeCount() == 0);
 
 		// Here is where you do your robot stuff
 		// including presumably updating your map somehow
-
 
 		x= pPosition->GetXPos();
 		y= pPosition->GetYPos();
@@ -170,33 +215,41 @@ void* robotLoop(void* args) {
 		dtheta=theta-lasttheta;
 
 		Vector2d odometry(dx,dy);
-
-		Scan scans(Vector2d(x,y),LASER);
-		for (int scan = 0; scan < pRanger->GetRangeCount();scan ++){
-			scans.addScan(scan,(*pRanger)[scan]);
+#ifdef SCAN_SONAR
+		Scan scans(Vector2d(x,y),SONAR);
+		for (int scan = 0; scan < rangeCount();scan++){
+			scans.addScan(scan,getRange(scan));
 		}
+		cout <<scans.scans.size()<<endl;
+#else
+		Scan scans(Vector2d(x,y),LASER);
+		for (int scan = 0; scan < rangeCount();scan+= 10){
+			scans.addScan(scan,getRange(scan));
+		}
+		cout <<scans.scans.size()<<endl;
+#endif
 
-		cout<<"dtheta"<<dtheta<<" odom:"<<odometry<<endl;
+
+
 		//seed particles at our current position
 		//update particles when we move
-		if( odometry.len() > .1 || abs(dtheta) > .1){
+		if( odometry.len() > .1 || abs(dtheta) > .05){
 			pthread_mutex_lock(&particles_mut);
 			lastx=x;
 			lasty=y;
 			lasttheta=theta;
 
-			double dlinear=odometry.len(); 
+			double dlinear=odometry.len();
 			if(fabs(wrap(odometry.getAngle()-theta)) > PI/2){
 				dlinear *= -1;
 			}
+
 			localizer.replenishParticles();
 			localizer.updateParticles(dlinear,dtheta);
 			localizer.scoreParticles(&scans);
 			localizer.pruneParticles();
-			localizer.getPose();
+			estimate =  localizer.getPose(10);
 			//score each particle.
-
-
 
 			//pPosition->SetOdometry(averagex,averagey,wrap(averagetheta));
 			//lastx=averagex;
@@ -224,15 +277,17 @@ int main(int argc, char *argv[]) {
 
 	pRobot = new PlayerClient( host, port );
 	pPosition = new Position2dProxy( pRobot, 0 );
-	pSonar = new SonarProxy( pRobot, 0 );
-	pRanger= new RangerProxy( pRobot, 0 );
+	#ifdef SCAN_SONAR
+		pSonar = new SonarProxy( pRobot, 0 );
+	#else
+		pRanger= new RangerProxy( pRobot, 0 );
+	#endif
 
 	printf("player connected on port %d, proxies allocated\n", port);
 	pPosition->SetMotorEnable(1);
 
 	pthread_mutex_init(&display_mut, NULL);
 	pthread_mutex_init(&particles_mut, NULL);
-
 
 	glutInit( &argc, argv );
 	glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE );
@@ -243,13 +298,11 @@ int main(int argc, char *argv[]) {
 	pthread_t thread_id;
 	pthread_create(&thread_id, NULL, robotLoop, NULL);
 
-
 	// Callbacks
 	glutDisplayFunc( display );
 	glutIdleFunc( display );
 
 	glutMainLoop();
-
 	pthread_mutex_lock(&display_mut);
 
 	free(pRobot);

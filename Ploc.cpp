@@ -10,6 +10,7 @@
 #include <iostream>
 #include <list>
 #include <vector>
+#include <cmath>
 
 #include "util.h"
 #include "Particle.h"
@@ -31,7 +32,7 @@ Ploc::Ploc(int minParticles, int maxParticles, Map* map){
 }
 void Ploc::updateParticles(double dlinear, double dtheta){
 	bestScore=0xFFFF;
-	
+
 	for(list<Particle>::iterator it=particles.begin();it!=particles.end();){
 		vector<Particle> ret= it->update(dlinear,dtheta,0);
 		double x = it->origin.x;
@@ -63,7 +64,7 @@ void Ploc::replenishParticles(void){
 			x= ((double)rand())/RAND_MAX*WIN_X_METERS-XOFFSET;
 			y= ((double)rand())/RAND_MAX*WIN_Y_METERS-YOFFSET;
 
-		}while(map->getVal(x,y) < .5 );
+		}while(map->isOccupied(x,y));
 		Particle part(x,y,wrap(((double)rand())/RAND_MAX*2*PI));
 		particles.push_back(part);
 	}
@@ -74,18 +75,16 @@ void Ploc::pruneParticles(){
 	int cloneCount=0;
 	list<Particle> newList;
 
-	cout<<"before: "<< particles.size() ;
 	//first sort from best to worst
 	particles.sort(compare);
 	//now prune the list
 	for(list<Particle>::iterator it=particles.begin();it!=particles.end();){
 		if(count++ < this->minParticles){
-			if(newList.size()< minParticles){
-				newList.push_back(*it);
-				cout<<".";
+			if(newList.size()< minParticles*2){
+				newList.push_back(it->clone());
 			}
 			++it;
-		}else if(count < this->minParticles*2){
+		}else if(count < this->minParticles*3){
 			//don't duplicate these.. just let them be
 		}
 		else{
@@ -93,31 +92,53 @@ void Ploc::pruneParticles(){
 		}
 	}
 	//insert the cloned particles in order
-	cout<<"pruned: "<< particles.size() ;
-	cout<<"after: "<< newList.size()<<endl;
 	particles.merge(newList,compare);
 }
-Pose Ploc::getPose(void){
+Pose Ploc::getPose(int toAverage){
 	Pose p;
 	double counter=0;
 	double score;
 	p.x=0;
 	p.y=0;
+	p.sigx=0;
+	p.sigy=0;
 	p.theta=0;
+	
 
 	//perform a weighted average of the particles based on score
+	particles.sort(compare);
+
 	for(list<Particle>::iterator it=particles.begin();it!=particles.end();it++){
-		score = it->scoreVal;
-		if(score < avgscore){
-			p.x+=it->origin.x*avgscore/score;
-			p.y+=it->origin.y*avgscore/score;
-			p.theta+=it->theta*avgscore/score;
-			counter+=avgscore/score;
+		if(counter < toAverage){
+			p.x+=it->origin.x;
+			p.y+=it->origin.y;
+			p.theta+=it->theta;
+		}else{
+			break;
+		}
+		counter++;
+	}
+	
+	counter=0;
+	p.x /= toAverage;
+	p.y /= toAverage;
+	p.theta/= toAverage;
+	p.theta=wrap(p.theta);
+
+	for(list<Particle>::iterator it=particles.begin();it!=particles.end();it++){
+		if(counter++ < toAverage ){
+			p.sigx+=pow(it->origin.x-p.x,2);
+			p.sigy+=pow(it->origin.y-p.y,2);
+			p.sigtheta+=pow(it->theta-p.theta,2);
+		}else{
+			break;
 		}
 	}
-	p.x /= counter;
-	p.y /= counter;
-	p.theta/= counter;
+
+	p.sigx=sqrt(p.sigx/(toAverage-1));
+	p.sigy=sqrt(p.sigy/(toAverage-1));
+	p.sigtheta=sqrt(p.sigtheta/(toAverage-1));
+
 
 	return p;
 }
