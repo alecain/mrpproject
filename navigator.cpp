@@ -103,6 +103,7 @@ double getRange(int index){
 Map localMap("test.pgm", "out.pgm", X_RES);
 Ploc localizer(100,500,&localMap);
 PathPlanner planner(&localMap);
+list<PathPoint *> route;
 
 static void display() {
 
@@ -129,13 +130,21 @@ static void display() {
 
 	// Draw the paths
 	glLineWidth(1);
-	glColor3ub(200, 200, 255);
+	glColor3ub(230, 230, 255);
 	for (vector< pair<PathPoint *, PathPoint *> >::const_iterator path = planner.getConnectionsBegin(); path < planner.getConnectionsEnd(); path++) {
 		glBegin(GL_LINE_STRIP);
 		glVertex2d(path->first->getX()/2, path->first->getY()/2);
 		glVertex2d(path->second->getX()/2, path->second->getY()/2);
 		glEnd();
 	}
+
+	// Draw the current route
+	glLineWidth(1);
+	glColor3ub(255, 200, 0);
+	glBegin(GL_LINE_STRIP);
+	for (list<PathPoint *>::const_iterator point = route.begin(); point != route.end(); point++)
+		glVertex2d((*point)->getX()/2, (*point)->getY()/2);
+	glEnd();
 
 	// Draw the waypoints
 	glBegin(GL_POINTS);
@@ -230,7 +239,6 @@ void* robotLoop(void* args) {
 
 }
 
-
 int main(int argc, char *argv[]) {
 	int port = 0;
 	char* host = (char *)"localhost";
@@ -256,7 +264,8 @@ int main(int argc, char *argv[]) {
 	pthread_mutex_init(&display_mut, NULL);
 	pthread_mutex_init(&particles_mut, NULL);
 
-	planner.generateWaypoints(500);
+	planner.generatePaths(500, 200, 200);
+	route = planner.findRoute(2000, 2000);
 
 	glutInit( &argc, argv );
 	glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE );
