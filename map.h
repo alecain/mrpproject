@@ -28,10 +28,14 @@ class Map{
 		void setVal(double x, double y, double newVal);
 		void conflate(int x, int y, double newVal);
 		void conflate(double x, double y, double newVal);
+		double raytracePixel(double x, double y, double angle, double maxRange);
 		double raytrace(double x, double y, double angle, double maxRange);
-
 		int xToMap(double x);
 		int yToMap(double y);
+		double getPixelWidth();
+		double getPixelHeight();
+		double getPixelLeft();
+		double getPixelTop();
 		~Map();
 
 		string filename;

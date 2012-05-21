@@ -17,6 +17,8 @@
 #include "map.h"
 #include "Ploc.h"
 #include "Particle.h"
+#include "PathPlanner.h"
+#include "PathPoint.h"
 
 using namespace PlayerCc;
 using namespace std;
@@ -147,6 +149,8 @@ double getRange(int index){
 Map localMap("test.pgm", "out.pgm", X_RES);
 Ploc localizer(800,3000,&localMap);
 Pose estimate;
+PathPlanner planner(&localMap);
+list<PathPoint *> route;
 
 static void display() {
 
@@ -172,6 +176,36 @@ static void display() {
 		it->draw();
 	}
 	estimate.draw();
+
+	// Draw the paths
+	glLineWidth(1);
+	glColor3ub(230, 230, 255);
+	for (vector< pair<PathPoint *, PathPoint *> >::const_iterator path = planner.getConnectionsBegin(); path < planner.getConnectionsEnd(); path++) {
+		glBegin(GL_LINE_STRIP);
+		glVertex2d(path->first->getX()/2, path->first->getY()/2);
+		glVertex2d(path->second->getX()/2, path->second->getY()/2);
+		glEnd();
+	}
+
+	// Draw the current route
+	glLineWidth(1);
+	glColor3ub(255, 200, 0);
+	glBegin(GL_LINE_STRIP);
+	for (list<PathPoint *>::const_iterator point = route.begin(); point != route.end(); point++)
+		glVertex2d((*point)->getX()/2, (*point)->getY()/2);
+	glEnd();
+
+	// Draw the waypoints
+	glBegin(GL_POINTS);
+	glColor3ub(0, 150, 0);
+
+	for (vector<PathPoint *>::const_iterator point = planner.getPointsBegin(); point < planner.getPointsEnd(); point++)
+		// Why do I have to divide by 2
+		glVertex2i((*point)->getX()/2, (*point)->getY()/2);
+
+	glEnd();
+
+
 
 	pthread_mutex_unlock(&particles_mut);
 
@@ -258,7 +292,6 @@ void* robotLoop(void* args) {
 
 }
 
-
 int main(int argc, char *argv[]) {
 	int port = 0;
 	char* host = (char *)"localhost";
@@ -270,6 +303,8 @@ int main(int argc, char *argv[]) {
 		cout<<"usage: "<<argv[0]<<"host port\r\n";
 		exit(-1);
 	}
+
+	srand(time(NULL));
 
 	pRobot = new PlayerClient( host, port );
 	pPosition = new Position2dProxy( pRobot, 0 );
@@ -284,6 +319,9 @@ int main(int argc, char *argv[]) {
 
 	pthread_mutex_init(&display_mut, NULL);
 	pthread_mutex_init(&particles_mut, NULL);
+
+	planner.generatePaths(500, 200, 200);
+	route = planner.findRoute(2000, 2000);
 
 	glutInit( &argc, argv );
 	glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE );
