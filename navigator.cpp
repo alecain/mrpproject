@@ -4,7 +4,7 @@
  *
  */
 
-#define SCAN_SONAR
+//#define SCAN_SONAR
 
 #include <GL/glut.h>
 #include <libplayerc++/playerc++.h>
@@ -217,18 +217,14 @@ void* robotLoop(void* args) {
 		Vector2d odometry(dx,dy);
 #ifdef SCAN_SONAR
 		Scan scans(Vector2d(x,y),SONAR);
+#else
+		Scan scans(Vector2d(x,y),LASER);
+#endif
+
 		for (int scan = 0; scan < rangeCount();scan++){
 			scans.addScan(scan,getRange(scan));
 		}
 		cout <<scans.scans.size()<<endl;
-#else
-		Scan scans(Vector2d(x,y),LASER);
-		for (int scan = 0; scan < rangeCount();scan+= 10){
-			scans.addScan(scan,getRange(scan));
-		}
-		cout <<scans.scans.size()<<endl;
-#endif
-
 
 
 		//seed particles at our current position

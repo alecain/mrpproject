@@ -70,8 +70,9 @@ double Particle::score(Map *map, Scan *scan){
 		return scoreVal;
 	}
 	double cost=0;
+	int toSkip = scan->scans.size()/SCANS_TO_PROCESS;
 
-	for (vector<ScanNode>::iterator it= scan->scans.begin(); it < scan->scans.end(); it++){
+	for (vector<ScanNode>::iterator it= scan->scans.begin(); it < scan->scans.end(); it+= toSkip){
 		double mapRange= 0xFFFF;
 		for(double i =-it->width/2; i < it->width/2; i+= toRad(1)){
 			double ray = map->raytrace(it->origin.x + this->origin.x,
