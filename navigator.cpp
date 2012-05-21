@@ -256,7 +256,7 @@ int main(int argc, char *argv[]) {
 	pthread_mutex_init(&display_mut, NULL);
 	pthread_mutex_init(&particles_mut, NULL);
 
-	planner.generateWaypoints(1000);
+	planner.generateWaypoints(500);
 
 	glutInit( &argc, argv );
 	glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE );

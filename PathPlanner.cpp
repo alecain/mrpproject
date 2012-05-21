@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "PathPlanner.h"
 
-#define NUM_CONNECTIONS 4
+#define NUM_CONNECTIONS 3
 
 using namespace std;
 
@@ -26,14 +26,20 @@ void PathPlanner::generateWaypoints(int count) {
 		_points.push_back(new PathPoint(x, y));
 	}
 
+	clock_t start = clock();
 	// Connect each of the points to their closests points to create the graph
 	for (int i = 0; i < _points.size(); i++) {
 		map<double, PathPoint *> closest;
 		vector<double> dists;
-		for (int j = 0; j < _points.size(); j++) {
-			if (i == j) continue;
+		for (int j = i + 1; j < _points.size(); j++) {
+			double dist = sqrt(pow(_points[i]->getX() - _points[j]->getX(), 2) + pow(_points[i]->getY() - _points[j]->getY(), 2));
 
-			double dist = pow(_points[i]->getX() - _points[j]->getX(), 2) + pow(_points[i]->getY() - _points[j]->getY(), 2);
+			// Check to see if this path collides with the map
+			if (_map->raytracePixel(_points[i]->getX(),
+			              _points[i]->getY(),
+			              atan2(_points[j]->getY() - _points[i]->getY(), _points[j]->getX() - _points[i]->getX()),
+			              dist) < dist)
+				continue;
 
 			if (closest.size() < NUM_CONNECTIONS) {
 				// If there aren't enough connections, add the point
@@ -60,6 +66,8 @@ void PathPlanner::generateWaypoints(int count) {
 		for(map<double, PathPoint *>::iterator point = closest.begin(); point != closest.end(); point++)
 			_connections.push_back(pair<PathPoint *, PathPoint *>(_points[i], point->second));
 	}
+
+	printf("Map took %ld ms to generate\n", (long)(clock() - start)/(CLOCKS_PER_SEC/1000));
 }
 
 vector<PathPoint *>::const_iterator PathPlanner::getPointsBegin() {
