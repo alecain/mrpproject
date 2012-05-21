@@ -91,7 +91,7 @@ double Particle::score(Map *map, Scan *scan){
 	temp = clock();
 
 	double age = (temp-creation)/CLOCKS_PER_SEC; //now minus then
-	if ( age > 15 ) age = 15;
+	if ( age > 5 ) age = 5;
 	scoreVal -=age;
 
 	return scoreVal;

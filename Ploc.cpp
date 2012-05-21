@@ -98,8 +98,8 @@ Pose Ploc::getPose(int toAverage){
 	Pose p;
 	double counter=0;
 	double score;
-	p.x=0;
-	p.y=0;
+	p.origin.x=0;
+	p.origin.y=0;
 	p.sigx=0;
 	p.sigy=0;
 	p.theta=0;
@@ -110,8 +110,8 @@ Pose Ploc::getPose(int toAverage){
 
 	for(list<Particle>::iterator it=particles.begin();it!=particles.end();it++){
 		if(counter < toAverage){
-			p.x+=it->origin.x;
-			p.y+=it->origin.y;
+			p.origin.x+=it->origin.x;
+			p.origin.y+=it->origin.y;
 			p.theta+=it->theta;
 		}else{
 			break;
@@ -120,15 +120,15 @@ Pose Ploc::getPose(int toAverage){
 	}
 	
 	counter=0;
-	p.x /= toAverage;
-	p.y /= toAverage;
+	p.origin.x /= toAverage;
+	p.origin.y /= toAverage;
 	p.theta/= toAverage;
 	p.theta=wrap(p.theta);
 
 	for(list<Particle>::iterator it=particles.begin();it!=particles.end();it++){
 		if(counter++ < toAverage ){
-			p.sigx+=pow(it->origin.x-p.x,2);
-			p.sigy+=pow(it->origin.y-p.y,2);
+			p.sigx+=pow(it->origin.x-p.origin.x,2);
+			p.sigy+=pow(it->origin.y-p.origin.y,2);
 			p.sigtheta+=pow(it->theta-p.theta,2);
 		}else{
 			break;

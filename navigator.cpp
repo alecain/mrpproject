@@ -17,6 +17,7 @@
 #include "map.h"
 #include "Ploc.h"
 #include "Particle.h"
+#include "safeGoto.h"
 
 using namespace PlayerCc;
 using namespace std;
@@ -82,8 +83,8 @@ void Pose::draw(){
 	//	  |
 	//        v0
 
-	double x0=this->x;
-	double y0=this->y;
+	double x0=this->origin.x;
+	double y0=this->origin.y;
 	double x1=(x0+cos(this->theta)*2);
 	double y1=(y0+sin(this->theta)*2);
 	double x2=(x1-cos(this->theta+toRad(30))*.6);
@@ -147,6 +148,7 @@ double getRange(int index){
 Map localMap("test.pgm", "out.pgm", X_RES);
 Ploc localizer(800,3000,&localMap);
 Pose estimate;
+SafeGoTo nav;
 
 static void display() {
 
@@ -193,6 +195,9 @@ void* robotLoop(void* args) {
 	double lastx=0,lasty=0,lasttheta=0;
 	double x,y,theta;
 	double dx,dy,dtheta;
+
+	nav.goTo(Vector2d(-50,-10));
+
 	while(true) {
 
 		redisplay();
@@ -224,7 +229,6 @@ void* robotLoop(void* args) {
 		for (int scan = 0; scan < rangeCount();scan++){
 			scans.addScan(scan,getRange(scan));
 		}
-		cout <<scans.scans.size()<<endl;
 
 
 		//seed particles at our current position
@@ -245,6 +249,9 @@ void* robotLoop(void* args) {
 			localizer.scoreParticles(&scans);
 			localizer.pruneParticles();
 			estimate =  localizer.getPose(10);
+
+			cout<<"pose: "<<estimate.origin<<endl;
+
 			//score each particle.
 
 			//pPosition->SetOdometry(averagex,averagey,wrap(averagetheta));
@@ -253,9 +260,10 @@ void* robotLoop(void* args) {
 			//lasttheta=wrap(averagetheta);
 			pthread_mutex_unlock(&particles_mut);
 		}
+		nav.update(&scans,&estimate);
+		nav.applyVelocity(pPosition);
 
 	}
-
 }
 
 
@@ -273,11 +281,11 @@ int main(int argc, char *argv[]) {
 
 	pRobot = new PlayerClient( host, port );
 	pPosition = new Position2dProxy( pRobot, 0 );
-	#ifdef SCAN_SONAR
-		pSonar = new SonarProxy( pRobot, 0 );
-	#else
-		pRanger= new RangerProxy( pRobot, 0 );
-	#endif
+#ifdef SCAN_SONAR
+	pSonar = new SonarProxy( pRobot, 0 );
+#else
+	pRanger= new RangerProxy( pRobot, 0 );
+#endif
 
 	printf("player connected on port %d, proxies allocated\n", port);
 	pPosition->SetMotorEnable(1);

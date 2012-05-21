@@ -1,6 +1,6 @@
 
 /*
- * particle based localization node 
+ * particle based localization node
  *
  *	Author: Andrew LeCain
  */
@@ -19,7 +19,8 @@
 
 class Pose{
 	public:
-	double x,y,theta;
+	Vector2d origin;
+	double theta;
 	double sigx,sigy,sigtheta;//standard deviations
 	void draw(void);
 };
