@@ -106,6 +106,38 @@ void Pose::draw(){
 
 }
 
+void SafeGoTo::drawVelocity(Pose *pose){
+	//draw a vector of lenth 1m starting v.x, v.y at angle theta
+	//	  v1
+	//	/ | \
+	//    v2  |  v3
+	//	  |
+	//        v0
+
+	double x0=pose->origin.x;
+	double y0=pose->origin.y;
+	double theta = pose->theta+this->Velocity.getAngle();
+	double len = this->Velocity.len();
+	double x1=(x0+cos(theta)*len);
+	double y1=(y0+sin(theta)*len);
+	double x2=(x1-cos(theta+toRad(30))*.6);
+	double y2=(y1-sin(theta+toRad(30))*.6);
+	double x3=(x1-cos(theta-toRad(30))*.6);
+	double y3=(y1-sin(theta-toRad(30))*.6);
+	
+	//velocity is blue
+	glColor3ub(0,0,255);
+	glLineWidth(2);
+	glBegin(GL_LINE_STRIP);
+	glVertex2d(windowX(x0),windowY(y0));
+	glVertex2d(windowX(x1),windowY(y1));
+	glVertex2d(windowX(x2),windowY(y2));
+	glVertex2d(windowX(x1),windowY(y1));
+	glVertex2d(windowX(x3),windowY(y3));
+	glEnd();
+
+}
+
 
 /**
  ****************************************************************************
@@ -174,6 +206,8 @@ static void display() {
 		it->draw();
 	}
 	estimate.draw();
+
+	nav.drawVelocity(&estimate);
 
 	pthread_mutex_unlock(&particles_mut);
 

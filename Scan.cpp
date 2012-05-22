@@ -120,6 +120,7 @@ Vector2d Scan::getObstacle(int index){
 	return scan;
 }
 
+//gives a vector to the obstacle relative to the robot
 Vector2d ScanNode::getObstacle(){
 	Vector2d scan = this->origin;
 	scan+= Vector2d(this->range,0).rotateAbs(this->angle);
