@@ -5,7 +5,7 @@
 
 #define SCANS_TO_PROCESS 50
 #define GOAL_TOLERANCE	.1
-#define SEEK_FORCE	10
+#define SEEK_FORCE	.5
 #define MAX_OBS_FORCE	SEEK_FORCE 
 
 #include "util.h"

@@ -117,7 +117,7 @@ void SafeGoTo::drawVelocity(Pose *pose){
 	double x0=pose->origin.x;
 	double y0=pose->origin.y;
 	double theta = pose->theta+this->Velocity.getAngle();
-	double len = this->Velocity.len();
+	double len = this->Velocity.len()*10;
 	double x1=(x0+cos(theta)*len);
 	double y1=(y0+sin(theta)*len);
 	double x2=(x1-cos(theta+toRad(30))*.6);

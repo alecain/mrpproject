@@ -67,15 +67,10 @@ int SafeGoTo::update(Scan *scan, Pose *pose){//updates the scan to be used by th
 	double distance;
 	if( (distance = goal.distance(pose->origin)) > GOAL_TOLERANCE){
 
-		//Vector2d2d representing our current heading
-		Vector2d heading(1,0);
-		heading = heading.rotateAbs(pose->theta);
-
 		Vector2d goalForce;
 		goalForce = goal.minus(pose->origin);
 		goalForce = goalForce.norm().times(SEEK_FORCE); //normalize the force, then scale by seek weight
 		goalForce = goalForce.rotate(-pose->theta); //rotate the force to be relative to the robot
-
 
 		int toSkip = scan->scans.size()/SCANS_TO_PROCESS;
 
@@ -83,7 +78,8 @@ int SafeGoTo::update(Scan *scan, Pose *pose){//updates the scan to be used by th
 			//for each scan in scan
 			for (vector<ScanNode>::iterator it = scan->scans.begin(); it < scan->scans.end(); it+=toSkip){
 				double dist =it->range;
-				if (dist < 1 && distance > .01 ){
+
+				if (it->angle < toRad(90) && it->angle > toRad(-90) ){
 					Vector2d position(0,0); //our position
 					//generate a Vector2d pointing towards the object (from us as origin)
 					Vector2d obs = it->getObstacle();
@@ -95,28 +91,20 @@ int SafeGoTo::update(Scan *scan, Pose *pose){//updates the scan to be used by th
 					force = force.divide(SCANS_TO_PROCESS);
 
 					//pay more attention to the vectors near our current heading
-					force = force.times(cos((obs.getAngle())));
-
-					//cap force to maxForce
-					if (force.len() > MAX_OBS_FORCE) force = force.norm().times(MAX_OBS_FORCE);
-
-					if (force.dot(Vector2d(0,1)) > 0 ){
-						//avoid each of these sensor readings.
-						Velocity = Velocity.plus(force);
-					}
+					force = force.times(cos(it->angle));
+					Velocity = Velocity.plus(force);
+				}
 			}
-
+		} else{
+			//goalForce = goalForce.divide(10);
 		}
-	} else{
-		//goalForce = goalForce.divide(10);
+
+		//add a constant attractive force towards our goal
+		Velocity = Velocity.plus(goalForce);
+
+		//finally, divide by two to average with the previous run.
+	}else{
 	}
-
-	//add a constant attractive force towards our goal
-	Velocity = Velocity.plus(goalForce);
-
-	//finally, divide by two to average with the previous run.
-}else{
-}
 }
 
 void SafeGoTo::applyVelocity(Position2dProxy* pp ){
@@ -127,14 +115,8 @@ void SafeGoTo::applyVelocity(Position2dProxy* pp ){
 	double speed = Velocity.len() * .9;
 	if (speed>maxSpeed) speed = maxSpeed;
 
-	if(Velocity.getAngle() > PI*3/4 ||  Velocity.getAngle() < -PI*3/4){
-		pp->SetSpeed(-4*speed,-turnRate);
-	}
-	if(Velocity.getAngle() > PI/2 ||  Velocity.getAngle() < -PI/2){
+	if(Velocity.getAngle() > PI/4 ||  Velocity.getAngle() < -PI/4){
 		pp->SetSpeed(0,turnRate);
-
-	}else if(Velocity.getAngle() > PI/3 ||  Velocity.getAngle() < -PI/3){
-		pp->SetSpeed(speed*.3,turnRate);
 
 	}else if(Velocity.getAngle() > .1 ||  Velocity.getAngle() < -.1){
 		//angle is not small. turn and drive slowly
