@@ -320,7 +320,8 @@ int main(int argc, char *argv[]) {
 	pthread_mutex_init(&display_mut, NULL);
 	pthread_mutex_init(&particles_mut, NULL);
 
-	planner.generatePaths(500, 200, 200);
+	planner.generatePaths(500);
+	planner.setDestination(200, 200);
 	route = planner.findRoute(2000, 2000);
 
 	glutInit( &argc, argv );

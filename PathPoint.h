@@ -8,17 +8,17 @@ class PathPoint {
 		double _x;
 		double _y;
 		double _cost;
-		std::vector<PathPoint *> _connections;
+		std::vector< std::pair<PathPoint *, double> > _connections;
 
 	public:
 		PathPoint(double x, double y);
-		void connect(PathPoint *other);
+		void connect(PathPoint *other, double cost);
 		double getX();
 		double getY();
 		void setCost(double cost);
 		double getCost();
-		std::vector<PathPoint *>::const_iterator connectionsBegin();
-		std::vector<PathPoint *>::const_iterator connectionsEnd();
+		std::vector< std::pair<PathPoint *, double> >::const_iterator connectionsBegin();
+		std::vector< std::pair<PathPoint *, double> >::const_iterator connectionsEnd();
 };
 
 #endif

@@ -7,8 +7,8 @@ PathPoint::PathPoint(double x, double y) : _x(x), _y(y) {
 	_cost = DBL_MAX;
 }
 
-void PathPoint::connect(PathPoint *other) {
-	_connections.push_back(other);
+void PathPoint::connect(PathPoint *other, double cost) {
+	_connections.push_back(pair<PathPoint *, double>(other, cost));
 }
 
 double PathPoint::getX() {
@@ -27,11 +27,11 @@ double PathPoint::getCost() {
 	return _cost;
 }
 
-vector<PathPoint *>::const_iterator PathPoint::connectionsBegin() {
+vector< pair<PathPoint *, double> >::const_iterator PathPoint::connectionsBegin() {
 	return _connections.begin();
 }
 
-vector<PathPoint *>::const_iterator PathPoint::connectionsEnd() {
+vector< pair<PathPoint *, double> >::const_iterator PathPoint::connectionsEnd() {
 	return _connections.end();
 }
 

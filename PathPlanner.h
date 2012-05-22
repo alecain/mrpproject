@@ -16,7 +16,9 @@ class PathPlanner {
 
 	public:
 		PathPlanner(Map *map);
-		void generatePaths(int count, double destX, double destY);
+		void generatePaths(int count);
+		void findAndConnect(PathPoint *point);
+		void setDestination(double destX, double destY);
 		std::vector<PathPoint *>::const_iterator getPointsBegin();
 		std::vector<PathPoint *>::const_iterator getPointsEnd();
 		vector< pair<PathPoint *, PathPoint *> >::const_iterator getConnectionsBegin();
