@@ -23,7 +23,7 @@ void PathPlanner::generatePaths(int count, double destX, double destY) {
 	for (int i = 0; i < count; i++) {
 		while (x = _map->getPixelWidth() * rand() / RAND_MAX,
 		       y = _map->getPixelHeight() * rand() / RAND_MAX,
-		       _map->getPixel(x, y) != 255);
+		       _map->getPixel(x, y) < 100);
 
 		_points.push_back(new PathPoint(x, y));
 	}

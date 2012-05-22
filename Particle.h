@@ -7,7 +7,6 @@
 #ifndef _PARTICLE_H
 #define _PARTICLE_H
 
-#define SCANS_TO_PROCESS 50
 
 
 #include "Vector2d.h"

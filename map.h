@@ -32,6 +32,8 @@ class Map{
 		double raytrace(double x, double y, double angle, double maxRange);
 		int xToMap(double x);
 		int yToMap(double y);
+		double xToMeters(int x);
+		double yToMeters(int y);
 		double getPixelWidth();
 		double getPixelHeight();
 		double getPixelLeft();

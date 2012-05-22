@@ -3,10 +3,13 @@
 #ifndef _SAFEGOTO_H
 #define _SAFEGOTO_H
 
-#define SCANS_TO_PROCESS 50
-#define GOAL_TOLERANCE	.1
-#define SEEK_FORCE	.5
-#define MAX_OBS_FORCE	SEEK_FORCE 
+#ifdef SCAN_SONAR
+	#define SCANS_TO_PROCESS 8
+#else
+	#define SCANS_TO_PROCESS 80
+#endif
+#define SEEK_FORCE	1
+#define MAX_OBS_FORCE	SEEK_FORCE
 
 #include "util.h"
 #include "Scan.h"
@@ -36,10 +39,10 @@ class SafeGoTo{
 		static const double laserMin;
 		static const double laserMax;
 
+		Vector2d goal;
 	private:
 		Vector2d avoid(Vector2d position, Vector2d toAvoid);
 		Vector2d Velocity;
-		Vector2d goal;
 
 
 

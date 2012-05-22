@@ -65,7 +65,7 @@ void Scan::addScan(double angle, double len){
 	double width;
 	if (type== SONAR){
 		width=toRad(20);
-		if (len < .3){ //forgot this about sonars...
+		if (len == 0){ //forgot this about sonars...
 			len = MAX_RANGE;
 		}
 	}else{

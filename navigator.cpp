@@ -30,6 +30,8 @@ using namespace std;
  *			Definitions
  ****************************************************************************
  */
+#define MIN_COV			1.0
+#define GOAL_TOLERANCE	2.0
 
 
 /**
@@ -66,9 +68,9 @@ void Particle::draw(){
 	double x3=(x1-cos(this->theta-toRad(30))*.6);
 	double y3=(y1-sin(this->theta-toRad(30))*.6);
 
-	glColor3ub(255,0,0);	
+	glColor3ub(255,0,0);
 	glLineWidth(1);
-	glBegin(GL_LINE_STRIP);	
+	glBegin(GL_LINE_STRIP);
 	glVertex2d(windowX(x0),windowY(y0));
 	glVertex2d(windowX(x1),windowY(y1));
 	glVertex2d(windowX(x2),windowY(y2));
@@ -180,10 +182,12 @@ double getRange(int index){
 // 0 will plot as white and 1 will plot as black.
 
 Map localMap("test.pgm", "out.pgm", X_RES);
-Ploc localizer(800,3000,&localMap);
+Map confMap("conf.pgm", "cout.pgm", X_RES);
+Ploc localizer(800,2000,&localMap);
 Pose estimate;
-PathPlanner planner(&localMap);
+PathPlanner planner(&confMap);
 list<PathPoint *> route;
+list<PathPoint *>::const_iterator current_waypoint;
 SafeGoTo nav;
 
 static void display() {
@@ -263,8 +267,11 @@ void* robotLoop(void* args) {
 	double lastx=0,lasty=0,lasttheta=0;
 	double x,y,theta;
 	double dx,dy,dtheta;
+	bool	position_unknown = true;
 
-	nav.goTo(Vector2d(-50,-10));
+	//set current nav goal to random to get us moving
+	nav.goTo(Vector2d(rand(),rand()));
+
 
 	while(true) {
 
@@ -318,7 +325,7 @@ void* robotLoop(void* args) {
 			localizer.pruneParticles();
 			estimate =  localizer.getPose(10);
 
-			cout<<"pose: "<<estimate.origin<<endl;
+			//cout<<"pose: "<<estimate.origin<<endl;
 
 			//score each particle.
 
@@ -326,8 +333,41 @@ void* robotLoop(void* args) {
 			//lastx=averagex;
 			//lasty=averagey;
 			//lasttheta=wrap(averagetheta);
+
+			if (estimate.sigx < MIN_COV && estimate.sigy < MIN_COV){
+				if (position_unknown){
+					position_unknown=false;
+
+					route = planner.findRoute(localMap.xToMap(estimate.origin.x), localMap.yToMap(estimate.origin.y));
+					current_waypoint = route.begin();
+					//set current nav goal
+					
+					double goalx = localMap.xToMeters((*current_waypoint)->getX());
+					double goaly = localMap.yToMeters((*current_waypoint)->getY());
+					nav.goTo(Vector2d(goalx,goaly));
+				} else {
+					position_unknown=true;
+				}
+
+				if (estimate.origin.distance(nav.goal) < GOAL_TOLERANCE ){
+					cout<<"waypoint reached"<<endl;
+					current_waypoint++;
+					if (current_waypoint == route.end()){
+						cout<<"goal reached"<<endl;
+						exit(0);
+					}
+					double goalx = localMap.xToMeters((*current_waypoint)->getX());
+					double goaly = localMap.yToMeters((*current_waypoint)->getY());
+					nav.goTo(Vector2d(goalx,goaly));
+				}
+			}
+
 			pthread_mutex_unlock(&particles_mut);
+
 		}
+
+		cout<<"Pose: "<< estimate.origin.x<< "," <<estimate.origin.y<<"->"<< estimate.origin.distance(nav.goal)<<endl;
+		//recalculate velocity
 		nav.update(&scans,&estimate);
 		nav.applyVelocity(pPosition);
 
@@ -363,7 +403,6 @@ int main(int argc, char *argv[]) {
 	pthread_mutex_init(&particles_mut, NULL);
 
 	planner.generatePaths(500, 200, 200);
-	route = planner.findRoute(2000, 2000);
 
 	glutInit( &argc, argv );
 	glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE );

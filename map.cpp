@@ -26,6 +26,14 @@ int Map::yToMap(double y){
 	return y/this->resolution +y0;
 }
 
+double Map::xToMeters(int x){
+	return (x-x0)*this->resolution;
+}
+
+double Map::yToMeters(int y){
+	return (y-y0)*this->resolution;
+}
+
 
 Map::Map(string filename, string copyto, double resolution){
 	this->filename=copyto;
@@ -234,6 +242,7 @@ double Map::raytrace(double x0, double y0, double angle, double mrange){
 	double range = sqrt( pow(x0-(x-this->x0)*this->resolution,2)+pow(y0-(y-this->y0)*this->resolution,2));
 	return range;
 }
+
 
 double Map::getPixelWidth() {
 	return x;

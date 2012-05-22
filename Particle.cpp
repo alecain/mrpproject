@@ -13,6 +13,8 @@
 #include <GL/glut.h>
 #include "util.h"
 
+#define SCANS_TO_PROCESS 80
+
 double Particle::thetaThetaCov=0.01;
 double Particle::thetaLinearCov=0.2;
 double Particle::linearLinearCov=0.4;
@@ -71,6 +73,7 @@ double Particle::score(Map *map, Scan *scan){
 	}
 	double cost=0;
 	int toSkip = scan->scans.size()/SCANS_TO_PROCESS;
+	if(!toSkip) toSkip = 1;
 
 	for (vector<ScanNode>::iterator it= scan->scans.begin(); it < scan->scans.end(); it+= toSkip){
 		double mapRange= 0xFFFF;
@@ -91,7 +94,7 @@ double Particle::score(Map *map, Scan *scan){
 	temp = clock();
 
 	double age = (temp-creation)/CLOCKS_PER_SEC; //now minus then
-	if ( age > 5 ) age = 5;
+	if ( age > 2 ) age = 2;
 	scoreVal -=age;
 
 	return scoreVal;
