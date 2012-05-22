@@ -56,7 +56,6 @@ double ScanNode::Score(double ideal){
 	return ret;
 }
 
-
 Scan::Scan(Vector2d origin, ScanType type){
 	this->origin = origin;
 	this->type=type;
@@ -117,7 +116,15 @@ double Scan::sensorY(int index){
 
 Vector2d Scan::getObstacle(int index){
 	Vector2d scan = this->scans[index].origin;
-	scan+= Vector2d(this->scans[index].range,0).rotateAbs(this->scans[index].angle);	
+	scan+= Vector2d(this->scans[index].range,0).rotateAbs(this->scans[index].angle);
+	return scan;
+}
+
+//gives a vector to the obstacle relative to the robot
+Vector2d ScanNode::getObstacle(){
+	Vector2d scan = this->origin;
+	scan+= Vector2d(this->range,0).rotateAbs(this->angle);
+	return scan;
 }
 
 double Scan::getRange(int index){

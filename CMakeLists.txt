@@ -16,5 +16,5 @@ find_package(OpenGL)
 #add_executable(map map.cpp Particle.cpp)
 #target_link_libraries(map Vector2d)
 
-PLAYER_ADD_PLAYERCPP_CLIENT (navigator SOURCES map.cpp navigator.cpp Particle.cpp Ploc.cpp PathPlanner.cpp PathPoint.cpp LINKFLAGS)
+PLAYER_ADD_PLAYERCPP_CLIENT (navigator SOURCES map.cpp navigator.cpp Particle.cpp Ploc.cpp PathPlanner.cpp PathPoint.cpp safeGoto.cpp LINKFLAGS)
 target_link_libraries(navigator ${GLUT_LIBRARY} ${OPENGL_LIBRARY} X11 Xext Vector2d Scan)
