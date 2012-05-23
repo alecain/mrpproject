@@ -413,14 +413,14 @@ int main(int argc, char *argv[]) {
 	char* host = (char *)"localhost";
 
 	if (argc > 3) {
-		port = atoi( argv[3] );
-		host = argv[2];
+		port = atoi( argv[2] );
+		host = argv[1];
 	} else {
-		cout<<"usage: "<<argv[0]<<"points.txt host port\r\n";
+		cout<<"usage: "<<argv[0]<<"host port point-file\r\n";
 		exit(-1);
 	}
 
-	FILE *fp = fopen(argv[1],"rd");
+	FILE *fp = fopen(argv[3],"rd");
 	int read;
 	double x,y;
 	do{
