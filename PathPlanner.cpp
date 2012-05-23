@@ -90,7 +90,6 @@ void PathPlanner::evaluatePathCost(double cost, PathPoint *point) {
 	}
 }
 
-// NOTE: If there is no path to the destination, this will lock up
 list<PathPoint *> PathPlanner::findRoute(double origX, double origY) {
 	list<PathPoint *> path;
 
@@ -108,6 +107,11 @@ list<PathPoint *> PathPlanner::findRoute(double origX, double origY) {
 
 	if (cur == NULL) {
 		printf("Empty set of waypoints. You must call generatePaths() first\n");
+		return path;
+	}
+
+	if (cur->getCost() == DBL_MAX) {
+		printf("No route to host^H^H^H^Hdestination\n");
 		return path;
 	}
 
