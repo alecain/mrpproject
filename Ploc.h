@@ -8,8 +8,11 @@
 #ifndef _PLOC_H
 #define _PLOC_H
 
+using namespace PlayerCc;
+using namespace std;
 
 #include <list>
+#include <libplayerc++/playerc++.h>
 
 #include "util.h"
 #include "Particle.h"
@@ -20,7 +23,9 @@
 class Pose{
 	public:
 	Vector2d origin;
+	Vector2d odomTransform;
 	double theta;
+	double thetaodom;
 	double sigx,sigy,sigtheta;//standard deviations
 	void draw(void);
 };
@@ -33,6 +38,7 @@ class Ploc{
 		void scoreParticles(Scan *scans);
 		void pruneParticles();
 		Pose getPose(int toAverage=25);
+		Pose getPose(Position2dProxy *pp, int toAverage=25);
 		list<Particle> particles;
 	private:
 		Map *map;

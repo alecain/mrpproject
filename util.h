@@ -13,7 +13,7 @@
 
 #define MAX_RANGE 5.0
 
-#define SCALE 2
+#define SCALE 1
 
 
 #define UNEXPLORED 1

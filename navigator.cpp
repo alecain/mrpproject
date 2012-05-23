@@ -30,9 +30,8 @@ using namespace std;
  *			Definitions
  ****************************************************************************
  */
-#define MIN_COV			1.0
-#define GOAL_TOLERANCE	2.0
-
+#define MIN_COV			3.0
+#define GOAL_TOLERANCE	2.5
 
 /**
  ****************************************************************************
@@ -47,9 +46,29 @@ static SonarProxy *pSonar;
 static RangerProxy *pRanger;
 pthread_mutex_t display_mut;
 pthread_mutex_t particles_mut;
-
+pthread_mutex_t ploc_mut;
 //vector<Particle> particles;
 
+double lastx=0,lasty=0,lasttheta=0;
+
+Map localMap("test.pgm", "out.pgm", X_RES);
+Map confMap("conf.pgm", "cout.pgm", X_RES);
+Ploc localizer(800,2000,&localMap);
+list<Particle> particles;
+Pose estimate;
+Pose est_modified;
+PathPlanner planner(&confMap);
+list<PathPoint *> route;
+list<PathPoint *>::const_iterator current_waypoint;
+SafeGoTo nav;
+
+list<Vector2d> goals;
+
+Scan scans_copy(Vector2d(0,0),SONAR);
+double dx,dy,dtheta, dlinear;
+double dtheta_copy, dlinear_copy;
+
+double x,y,theta;
 
 void Particle::draw(){
 	//draw a vector of lenth 1m starting v.x, v.y at angle theta
@@ -95,7 +114,7 @@ void Pose::draw(){
 	double y2=(y1-sin(this->theta+toRad(30))*.6);
 	double x3=(x1-cos(this->theta-toRad(30))*.6);
 	double y3=(y1-sin(this->theta-toRad(30))*.6);
-	
+
 
 	//pose is green
 	glColor3ub(0,255,0);	
@@ -128,7 +147,7 @@ void SafeGoTo::drawVelocity(Pose *pose){
 	double y2=(y1-sin(theta+toRad(30))*.6);
 	double x3=(x1-cos(theta-toRad(30))*.6);
 	double y3=(y1-sin(theta-toRad(30))*.6);
-	
+
 	//velocity is blue
 	glColor3ub(0,0,255);
 	glLineWidth(2);
@@ -153,20 +172,20 @@ void SafeGoTo::drawVelocity(Pose *pose){
 
 //abstraction of the ranger and sonar
 int rangeCount(){
-	#ifdef SCAN_SONAR
+#ifdef SCAN_SONAR
 	return 8;
-	#else
+#else
 	return pRanger->GetRangeCount();
-	#endif
+#endif
 }
 
 //abstraction of the ranger and sonar
 double getRange(int index){
-	#ifdef SCAN_SONAR
+#ifdef SCAN_SONAR
 	return (*pSonar)[index];
-	#else
+#else
 	return (*pRanger)[index];
-	#endif
+#endif
 }
 
 
@@ -181,14 +200,6 @@ double getRange(int index){
 // values here should be between 0 and 1 to plot correctly.
 // 0 will plot as white and 1 will plot as black.
 
-Map localMap("test.pgm", "out.pgm", X_RES);
-Map confMap("conf.pgm", "cout.pgm", X_RES);
-Ploc localizer(800,2000,&localMap);
-Pose estimate;
-PathPlanner planner(&confMap);
-list<PathPoint *> route;
-list<PathPoint *>::const_iterator current_waypoint;
-SafeGoTo nav;
 
 static void display() {
 
@@ -210,17 +221,19 @@ static void display() {
 
 	pthread_mutex_lock(&particles_mut);
 
-	for(list<Particle>::iterator it=localizer.particles.begin();it!=localizer.particles.end();it++){
+	for(list<Particle>::iterator it=particles.begin();it!=particles.end();it++){
 		it->draw();
 	}
+
+	pthread_mutex_unlock(&particles_mut);
 
 	// Draw the paths
 	glLineWidth(1);
 	glColor3ub(230, 230, 255);
 	for (vector< pair<PathPoint *, PathPoint *> >::const_iterator path = planner.getConnectionsBegin(); path < planner.getConnectionsEnd(); path++) {
 		glBegin(GL_LINE_STRIP);
-		glVertex2d(path->first->getX()/2, path->first->getY()/2);
-		glVertex2d(path->second->getX()/2, path->second->getY()/2);
+		glVertex2d(path->first->getX()/SCALE, path->first->getY()/SCALE);
+		glVertex2d(path->second->getX()/SCALE, path->second->getY()/SCALE);
 		glEnd();
 	}
 
@@ -229,7 +242,15 @@ static void display() {
 	glColor3ub(255, 200, 0);
 	glBegin(GL_LINE_STRIP);
 	for (list<PathPoint *>::const_iterator point = route.begin(); point != route.end(); point++)
-		glVertex2d((*point)->getX()/2, (*point)->getY()/2);
+		glVertex2d((*point)->getX()/SCALE, (*point)->getY()/SCALE);
+	glEnd();
+
+	// Draw the current goal
+	glLineWidth(5);
+	glColor3ub(255, 200, 0);
+	glBegin(GL_LINE_STRIP);
+		glVertex2d(localMap.xToMap(goals.front().x-.2)/SCALE,localMap.yToMap(goals.front().y-.2)/SCALE);
+		glVertex2d(localMap.xToMap(goals.front().x+.2)/SCALE,localMap.yToMap(goals.front().y+.2)/SCALE);
 	glEnd();
 
 
@@ -239,15 +260,14 @@ static void display() {
 
 	for (vector<PathPoint *>::const_iterator point = planner.getPointsBegin(); point < planner.getPointsEnd(); point++)
 		// Why do I have to divide by 2
-		glVertex2i((*point)->getX()/2, (*point)->getY()/2);
+		glVertex2i((*point)->getX()/SCALE, (*point)->getY()/SCALE);
 
 	glEnd();
 
 	//draw estimated pose and current velocity
-	estimate.draw();
+	est_modified.draw();
 	nav.drawVelocity(&estimate);
 
-	pthread_mutex_unlock(&particles_mut);
 
 	pthread_mutex_unlock(&display_mut);
 	// Flush the pipeline
@@ -258,19 +278,38 @@ static void display() {
 }
 
 
+void* plocLoop(void* args) {
+	while (true){
+
+		pthread_mutex_lock(&ploc_mut);
+
+		localizer.replenishParticles();
+		localizer.updateParticles(dlinear_copy,dtheta_copy);
+		localizer.scoreParticles(&scans_copy);
+		localizer.pruneParticles();
+		estimate =  localizer.getPose(pPosition, 50);
+
+		lastx=x;
+		lasty=y;
+		lasttheta=theta;
+
+		pthread_mutex_lock(&particles_mut);
+		particles = localizer.particles;
+		pthread_mutex_unlock(&particles_mut);
+
+	}
+}
+
 void redisplay(void) {
 	pthread_mutex_lock(&display_mut);
 	glutPostRedisplay();
 }
 
 void* robotLoop(void* args) {
-	double lastx=0,lasty=0,lasttheta=0;
-	double x,y,theta;
-	double dx,dy,dtheta;
 	bool	position_unknown = true;
 
-	//set current nav goal to random to get us moving
-	nav.goTo(Vector2d(rand(),rand()));
+	//set current nav goal to get us moving
+	nav.goTo(Vector2d(goals.front().x,goals.front().y));
 
 
 	while(true) {
@@ -305,34 +344,20 @@ void* robotLoop(void* args) {
 			scans.addScan(scan,getRange(scan));
 		}
 
-
 		//seed particles at our current position
 		//update particles when we move
-		if( odometry.len() > .1 || abs(dtheta) > .05){
-			pthread_mutex_lock(&particles_mut);
-			lastx=x;
-			lasty=y;
-			lasttheta=theta;
+		if( odometry.len() > .1 || abs(dtheta) > .08){
 
-			double dlinear=odometry.len();
+			dlinear=odometry.len();
 			if(fabs(wrap(odometry.getAngle()-theta)) > PI/2){
 				dlinear *= -1;
 			}
 
-			localizer.replenishParticles();
-			localizer.updateParticles(dlinear,dtheta);
-			localizer.scoreParticles(&scans);
-			localizer.pruneParticles();
-			estimate =  localizer.getPose(10);
-
-			//cout<<"pose: "<<estimate.origin<<endl;
-
-			//score each particle.
-
-			//pPosition->SetOdometry(averagex,averagey,wrap(averagetheta));
-			//lastx=averagex;
-			//lasty=averagey;
-			//lasttheta=wrap(averagetheta);
+			dlinear_copy=dlinear;
+			dtheta_copy=dtheta;
+			scans_copy=scans;
+			//We've moved far enough.. unblock processing thread
+			pthread_mutex_unlock(&ploc_mut);
 
 			if (estimate.sigx < MIN_COV && estimate.sigy < MIN_COV){
 				if (position_unknown){
@@ -341,34 +366,43 @@ void* robotLoop(void* args) {
 					route = planner.findRoute(localMap.xToMap(estimate.origin.x), localMap.yToMap(estimate.origin.y));
 					current_waypoint = route.begin();
 					//set current nav goal
-					
+
 					double goalx = localMap.xToMeters((*current_waypoint)->getX());
 					double goaly = localMap.yToMeters((*current_waypoint)->getY());
 					nav.goTo(Vector2d(goalx,goaly));
-				} else {
-					position_unknown=true;
 				}
 
-				if (estimate.origin.distance(nav.goal) < GOAL_TOLERANCE ){
+				if (estimate.origin.distance(nav.goal) < GOAL_TOLERANCE && route.size() > 0 ){
 					cout<<"waypoint reached"<<endl;
 					current_waypoint++;
-					if (current_waypoint == route.end()){
+					if (current_waypoint == route.end() && current_waypoint != route.begin()){
 						cout<<"goal reached"<<endl;
-						exit(0);
+						if (goals.size() > 0){
+							goals.pop_front();
+							Vector2d goal = goals.front();
+							planner.generatePaths(1000, localMap.xToMap(goal.x),localMap.xToMap(goal.y));
+						} else{
+							cout<<"All goals finished"<<endl;
+							exit(0);
+						}
 					}
 					double goalx = localMap.xToMeters((*current_waypoint)->getX());
 					double goaly = localMap.yToMeters((*current_waypoint)->getY());
 					nav.goTo(Vector2d(goalx,goaly));
 				}
+			} else if (estimate.sigx > MIN_COV*2 && estimate.sigy > MIN_COV *2){ //leave a gap to trigger saying our position is unknown
+				position_unknown=true;
 			}
 
-			pthread_mutex_unlock(&particles_mut);
-
 		}
+		//cout<<"Pose: "<< estimate.origin.x<< "," <<estimate.origin.y<<"->"<< estimate.origin.distance(nav.goal)<<endl;
+		est_modified = estimate;
+		//modify the estimate based on the odometry.
+		est_modified.origin = estimate.odomTransform.plus(Vector2d(pPosition->GetXPos(), pPosition->GetYPos()));
+		est_modified.theta = estimate.thetaodom+ pPosition->GetYaw();
 
-		cout<<"Pose: "<< estimate.origin.x<< "," <<estimate.origin.y<<"->"<< estimate.origin.distance(nav.goal)<<endl;
 		//recalculate velocity
-		nav.update(&scans,&estimate);
+		nav.update(&scans,&est_modified);
 		nav.applyVelocity(pPosition);
 
 	}
@@ -378,13 +412,24 @@ int main(int argc, char *argv[]) {
 	int port = 0;
 	char* host = (char *)"localhost";
 
-	if (argc > 1) {
-		port = atoi( argv[2] );
-		host = argv[1];
+	if (argc > 3) {
+		port = atoi( argv[3] );
+		host = argv[2];
 	} else {
-		cout<<"usage: "<<argv[0]<<"host port\r\n";
+		cout<<"usage: "<<argv[0]<<"points.txt host port\r\n";
 		exit(-1);
 	}
+
+	FILE *fp = fopen(argv[1],"rd");
+	int read;
+	double x,y;
+	do{
+		read=fscanf(fp,"%lf %lf",&x,&y);
+		if (read == 2){
+			cout<<"goal :"<<x <<","<<y<<endl;
+			goals.push_back(Vector2d(x,y));
+		}
+	}while (read== 2);
 
 	srand(time(NULL));
 
@@ -401,8 +446,16 @@ int main(int argc, char *argv[]) {
 
 	pthread_mutex_init(&display_mut, NULL);
 	pthread_mutex_init(&particles_mut, NULL);
+	pthread_mutex_init(&ploc_mut,NULL);
 
-	planner.generatePaths(500, 200, 200);
+	if (goals.size() > 0){
+		Vector2d goal = goals.front();
+		planner.generatePaths(1000, localMap.xToMap(goal.x),localMap.xToMap(goal.y));
+		cout<<"current goal :"<<localMap.xToMap(goal.x) <<","<<localMap.xToMap(goal.y)<<endl;
+	} else{
+		cout<<"No goals specified"<<endl;
+		exit(-1);
+	}
 
 	glutInit( &argc, argv );
 	glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE );
@@ -412,6 +465,9 @@ int main(int argc, char *argv[]) {
 
 	pthread_t thread_id;
 	pthread_create(&thread_id, NULL, robotLoop, NULL);
+
+	pthread_t ploc_thread_id;
+	pthread_create(&ploc_thread_id, NULL, plocLoop, NULL);
 
 	// Callbacks
 	glutDisplayFunc( display );

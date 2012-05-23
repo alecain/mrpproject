@@ -25,18 +25,11 @@ using namespace PlayerCc;
  ****************************************************************************
  */
 
-
-using namespace PlayerCc;
-
-/*
- ****************************************************************************
- *Navigation
- ****************************************************************************
- */
+#define MAX_VELOCITY .4
 
 const double SafeGoTo::dt = 0.1;//time quantum
-const double SafeGoTo::maxSpeed = .5;// m/s
-const double SafeGoTo::maxTwist = .6;// radians per second (.157 per tick)
+const double SafeGoTo::maxSpeed = .6;// m/s
+const double SafeGoTo::maxTwist = .4;// radians per second (.157 per tick)
 
 const double SafeGoTo::laserRes=0.00613593; //Is this right?
 const double SafeGoTo::laserMin = -1.932817852;
@@ -51,9 +44,9 @@ Vector2d SafeGoTo::avoid(Vector2d position, Vector2d toAvoid){
 
 	Vector2d ret=position.minus(toAvoid);
 	ret.norm();
-	double dist = position.distance(toAvoid);
+	double dist = toAvoid.len();
 	if (dist != 0){
-		ret=ret.divide(dist*dist);
+		ret=ret.times(2/(dist*dist));
 	}
 
 	return ret;
@@ -74,36 +67,35 @@ int SafeGoTo::update(Scan *scan, Pose *pose){//updates the scan to be used by th
 	int toSkip = scan->scans.size()/SCANS_TO_PROCESS;
 	if(!toSkip) toSkip = 1;
 
-	if(distance > .5){ //only avoid obstacles if we're far from our goal.. not ideal, but easier than changing weights.
-		//for each scan in scan
-		for (vector<ScanNode>::iterator it = scan->scans.begin(); it < scan->scans.end(); it+=toSkip){
-			double dist =it->range;
+	//for each scan in scan
+	for (vector<ScanNode>::iterator it = scan->scans.begin(); it < scan->scans.end(); it+=toSkip){
+		double dist =it->range;
 
-			if (it->angle <= toRad(120) && it->angle >= toRad(-120) ){
-				Vector2d position(0,0); //our position
-				//generate a Vector2d pointing towards the object (from us as origin)
-				Vector2d obs = it->getObstacle();
+		if (it->angle <= toRad(120) && it->angle >= toRad(-120) ){
+			Vector2d position(0,0); //our position
+			//generate a Vector2d pointing towards the object (from us as origin)
+			Vector2d obs = it->getObstacle();
 
-				//produce a Vector2d pointing away inversely proportional to distance
-				Vector2d force = avoid(position, obs);
+			//produce a Vector2d pointing away inversely proportional to distance
+			Vector2d force = avoid(position, obs);
 
-				//scale vector so it isn't a huge sum
-				force = force.divide(SCANS_TO_PROCESS);
+			//scale vector so it isn't a huge sum
+			force = force.divide(SCANS_TO_PROCESS);
+			
+			//scale obstacle forces so they are at most seek force/2
+			if (force.len() > MAX_OBS_FORCE) force = force.norm().times(MAX_OBS_FORCE);
 
-				//pay more attention to the vectors near our current heading
-				force = force.times(cos(it->angle)*2);
-				Velocity = Velocity.plus(force);
-			}
+			//pay more attention to the vectors near our current heading
+			force = force.times(cos(it->angle/3));
+			Velocity = Velocity.plus(force.times(dt));
 		}
-	} else{
 	}
 
 	//add a constant attractive force towards our goal
-	Velocity = Velocity.plus(goalForce);
-	if (Velocity.len() > maxSpeed){
-		Velocity = Velocity.norm().times(maxSpeed);
+	Velocity = Velocity.plus(goalForce.times(dt));
+	if (Velocity.len() > MAX_VELOCITY){
+		Velocity = Velocity.norm().times(MAX_VELOCITY);
 	}
-	//finally, divide by two to average with the previous run.
 }
 
 void SafeGoTo::applyVelocity(Position2dProxy* pp ){

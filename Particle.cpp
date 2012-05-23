@@ -13,12 +13,12 @@
 #include <GL/glut.h>
 #include "util.h"
 
-#define SCANS_TO_PROCESS 80
+#define SCANS_TO_SCORE 70
 
-double Particle::thetaThetaCov=0.01;
-double Particle::thetaLinearCov=0.2;
-double Particle::linearLinearCov=0.4;
-double Particle::linearThetaCov=0.01;
+double Particle::thetaThetaCov=0.08;
+double Particle::thetaLinearCov=0.4;
+double Particle::linearLinearCov=0.6;
+double Particle::linearThetaCov=0.05;
 
 double gaussian(){
 	double sum=0;
@@ -72,7 +72,7 @@ double Particle::score(Map *map, Scan *scan){
 		return scoreVal;
 	}
 	double cost=0;
-	int toSkip = scan->scans.size()/SCANS_TO_PROCESS;
+	int toSkip = scan->scans.size()/SCANS_TO_SCORE;
 	if(!toSkip) toSkip = 1;
 
 	for (vector<ScanNode>::iterator it= scan->scans.begin(); it < scan->scans.end(); it+= toSkip){

@@ -6,10 +6,11 @@
 #ifdef SCAN_SONAR
 	#define SCANS_TO_PROCESS 8
 #else
-	#define SCANS_TO_PROCESS 80
+	#define SCANS_TO_PROCESS 60
 #endif
+
 #define SEEK_FORCE	1
-#define MAX_OBS_FORCE	SEEK_FORCE
+#define MAX_OBS_FORCE	1
 
 #include "util.h"
 #include "Scan.h"

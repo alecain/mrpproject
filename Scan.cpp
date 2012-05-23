@@ -42,8 +42,7 @@ double ScanNode::Score(double ideal){
 
 	double delta = pow(range - ideal,2);
 
-	return delta;
-	if (range > MAX_RANGE * .9 && ideal < MAX_RANGE){ // could be a missed scan.
+	if (range > MAX_RANGE * .9 && ideal < MAX_RANGE*.9){ // could be a missed scan.
 		ret = .4;
 	}else if(range < ideal * .9){ //range < ideal.. maybe we hit some obstacle on the map. Still not good.
 		ret = 2*delta;
@@ -63,11 +62,11 @@ Scan::Scan(Vector2d origin, ScanType type){
 
 void Scan::addScan(double angle, double len){
 	double width;
+	if (len < 0.01){ //forgot this about sonars...
+		len = MAX_RANGE;
+	}
 	if (type== SONAR){
 		width=toRad(20);
-		if (len == 0){ //forgot this about sonars...
-			len = MAX_RANGE;
-		}
 	}else{
 		width=toRad(0);
 	}

@@ -11,6 +11,7 @@
 #include <list>
 #include <vector>
 #include <cmath>
+#include <libplayerc++/playerc++.h>
 
 #include "util.h"
 #include "Particle.h"
@@ -18,6 +19,8 @@
 #include "Ploc.h"
 
 
+using namespace PlayerCc;
+using namespace std;
 
 bool compare(Particle a, Particle b){
 	return (a.scoreVal < b.scoreVal );
@@ -94,6 +97,14 @@ void Ploc::pruneParticles(){
 	//insert the cloned particles in order
 	particles.merge(newList,compare);
 }
+Pose Ploc::getPose(Position2dProxy *pp, int toAverage){
+
+	Pose p = getPose(toAverage);
+	p.odomTransform = Vector2d(p.origin.x - pp->GetXPos(),p.origin.y - pp->GetYPos()); //subtract odom from our pose to get the transform
+	p.thetaodom= p.theta - pp->GetYaw();
+	
+	return p;
+}
 Pose Ploc::getPose(int toAverage){
 	Pose p;
 	double counter=0;
@@ -103,7 +114,7 @@ Pose Ploc::getPose(int toAverage){
 	p.sigx=0;
 	p.sigy=0;
 	p.theta=0;
-	
+
 
 	//perform a weighted average of the particles based on score
 	particles.sort(compare);
@@ -118,7 +129,7 @@ Pose Ploc::getPose(int toAverage){
 		}
 		counter++;
 	}
-	
+
 	counter=0;
 	p.origin.x /= toAverage;
 	p.origin.y /= toAverage;
